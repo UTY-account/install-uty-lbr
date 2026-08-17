@@ -27,10 +27,10 @@ export async function POST(req: NextRequest) {
 
     // 3. Fetch existing data for verification (Companies, Subcontractors, Items)
     const companyCodes = Array.from(new Set(groupedJobs.map((g) => g.companyCode)));
-    const companiesInDb = await prisma.company.findMany({
+    const companiesInDb = (await prisma.company.findMany({
       where: { code: { in: companyCodes } },
-    });
-    const companyMap = new Map(companiesInDb.map((c) => [c.code, c]));
+    })) as any[];
+    const companyMap = new Map<string, any>(companiesInDb.map((c: any) => [c.code, c]));
 
     // Check for missing companies
     for (const code of companyCodes) {
@@ -48,25 +48,25 @@ export async function POST(req: NextRequest) {
     const allIdCards = Array.from(
       new Set(parsedRows.map((r) => r.subcontractorIdCard))
     );
-    const existingSubcontractors = await prisma.subcontractor.findMany({
+    const existingSubcontractors = (await prisma.subcontractor.findMany({
       where: { idCard: { in: allIdCards } },
-    });
-    const subMap = new Map(existingSubcontractors.map((s) => [s.idCard, s]));
+    })) as any[];
+    const subMap = new Map<string, any>(existingSubcontractors.map((s: any) => [s.idCard, s]));
 
     // Check Items in DB
     const allItemCodes = Array.from(new Set(parsedRows.map((r) => r.itemCode)));
-    const existingItems = await prisma.item.findMany({
+    const existingItems = (await prisma.item.findMany({
       where: { code: { in: allItemCodes } },
-    });
-    const itemMap = new Map(existingItems.map((it) => [it.code, it]));
+    })) as any[];
+    const itemMap = new Map<string, any>(existingItems.map((it: any) => [it.code, it]));
 
     // 4. If Preview mode, return enriched grouping structure for user review
     if (isPreview) {
       const previewJobs = groupedJobs.map((job) => {
-        const company = companyMap.get(job.companyCode)!;
+        const company = companyMap.get(job.companyCode) as any;
         return {
           ...job,
-          companyName: company.nameTh,
+          companyName: company?.nameTh || '',
           contracts: job.contracts.map((contract) => {
             const existingSub = subMap.get(contract.subcontractorIdCard);
             return {
