@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "build:worker": "opennextjs-cloudflare build --dangerouslyUseUnsupportedNextVersion",
-    "build:cf": "prisma generate && opennextjs-cloudflare build --dangerouslyUseUnsupportedNextVersion",
+    "build:cf": "node scripts/build-cf.js",
     "start": "next start",
     "lint": "next lint",
     "prisma:generate": "prisma generate",
