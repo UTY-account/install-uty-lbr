@@ -1,7 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient as PrismaWasmClient } from '@prisma/client/wasm';
+import { PrismaClient as PrismaNodeClient } from '@prisma/client';
 import { PrismaD1 } from '@prisma/adapter-d1';
 
-let cachedPrismaWithD1: PrismaClient | null = null;
+let cachedPrismaWithD1: any = null;
 let cachedD1Ref: any = null;
 
 function resolveD1Database(): any {
@@ -15,14 +16,14 @@ function resolveD1Database(): any {
   return null;
 }
 
-export function getPrisma(): PrismaClient {
+export function getPrisma(): any {
   const d1 = resolveD1Database();
 
   if (d1) {
     if (!cachedPrismaWithD1 || cachedD1Ref !== d1) {
       cachedD1Ref = d1;
       const adapter = new PrismaD1(d1);
-      cachedPrismaWithD1 = new PrismaClient({
+      cachedPrismaWithD1 = new PrismaWasmClient({
         adapter: adapter as any,
         log: ['error'],
       } as any);
@@ -39,21 +40,21 @@ export function getPrisma(): PrismaClient {
 
   // Fallback for Local Development (SQLite dev.db)
   const globalForPrisma = globalThis as unknown as {
-    prisma: PrismaClient | undefined;
+    prisma: any;
   };
 
   if (!globalForPrisma.prisma) {
-    globalForPrisma.prisma = new PrismaClient({
+    globalForPrisma.prisma = new PrismaNodeClient({
       log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
     });
   }
   return globalForPrisma.prisma;
 }
 
-export const prisma = new Proxy({} as PrismaClient, {
+export const prisma = new Proxy({} as any, {
   get(_target, prop) {
     const client = getPrisma();
-    const value = (client as any)[prop];
+    const value = client[prop];
     if (typeof value === 'function') {
       return value.bind(client);
     }
