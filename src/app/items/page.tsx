@@ -65,6 +65,14 @@ export default function ItemsMasterPage() {
     }
   };
 
+  const defaultCategories = ['งานพื้น', 'งานผนัง', 'งานฝ้าและเพดาน', 'งานอุปกรณ์ตกแต่ง', 'งานบริการ/สำรวจ'];
+  const dynamicCategories = Array.from(
+    new Set([
+      ...defaultCategories,
+      ...items.map((it) => it.category).filter(Boolean),
+    ])
+  );
+
   useEffect(() => {
     fetchItems();
   }, [categoryFilter]);
@@ -229,12 +237,12 @@ export default function ItemsMasterPage() {
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
           >
-            <option value="all">ทุกหมวดหมู่งาน</option>
-            <option value="งานพื้น">งานพื้น</option>
-            <option value="งานอุปกรณ์ตกแต่ง">งานอุปกรณ์ตกแต่ง</option>
-            <option value="งานผนัง">งานผนัง</option>
-            <option value="งานฝ้าและเพดาน">งานฝ้าและเพดาน</option>
-            <option value="งานบริการ/สำรวจ">งานบริการ/สำรวจ</option>
+            <option value="all">ทุกหมวดหมู่งาน ({items.length})</option>
+            {dynamicCategories.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -391,19 +399,22 @@ export default function ItemsMasterPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    หมวดหมู่
+                    หมวดหมู่งาน (พิมพ์ใหม่ได้อิสระ) *
                   </label>
-                  <select
+                  <input
+                    type="text"
+                    list="add-category-options"
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value)}
+                    placeholder="พิมพ์ชื่อหมวดหมู่ หรือเลือกจากรายการ"
                     className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:ring-2 focus:ring-purple-500 shadow-2xs"
-                  >
-                    <option value="งานพื้น">งานพื้น</option>
-                    <option value="งานอุปกรณ์ตกแต่ง">งานอุปกรณ์ตกแต่ง</option>
-                    <option value="งานผนัง">งานผนัง</option>
-                    <option value="งานฝ้าและเพดาน">งานฝ้าและเพดาน</option>
-                    <option value="งานบริการ/สำรวจ">งานบริการ/สำรวจ</option>
-                  </select>
+                    required
+                  />
+                  <datalist id="add-category-options">
+                    {dynamicCategories.map((cat) => (
+                      <option key={cat} value={cat} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div>
@@ -523,19 +534,22 @@ export default function ItemsMasterPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    หมวดหมู่
+                    หมวดหมู่งาน (พิมพ์ใหม่ได้อิสระ) *
                   </label>
-                  <select
+                  <input
+                    type="text"
+                    list="edit-category-options"
                     value={editCategory}
                     onChange={(e) => setEditCategory(e.target.value)}
+                    placeholder="พิมพ์ชื่อหมวดหมู่ หรือเลือกจากรายการ"
                     className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:ring-2 focus:ring-purple-500 shadow-2xs"
-                  >
-                    <option value="งานพื้น">งานพื้น</option>
-                    <option value="งานอุปกรณ์ตกแต่ง">งานอุปกรณ์ตกแต่ง</option>
-                    <option value="งานผนัง">งานผนัง</option>
-                    <option value="งานฝ้าและเพดาน">งานฝ้าและเพดาน</option>
-                    <option value="งานบริการ/สำรวจ">งานบริการ/สำรวจ</option>
-                  </select>
+                    required
+                  />
+                  <datalist id="edit-category-options">
+                    {dynamicCategories.map((cat) => (
+                      <option key={cat} value={cat} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div>
