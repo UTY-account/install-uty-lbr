@@ -18,7 +18,7 @@ import { formatThaiIDCard } from '@/lib/utils';
 import { useCompany } from '@/components/CompanyContext';
 
 export default function CompaniesSettingsPage() {
-  const { fetchCompanies: refreshGlobalCompanies } = useCompany();
+  const { refreshCompanies: refreshGlobalCompanies } = useCompany();
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 

@@ -1,0 +1,9 @@
+name = "install-uty-lbr"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".next"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pro-install-db"
+database_id = "d6cc11c8-7af8-46c3-b413-01200f515912"
