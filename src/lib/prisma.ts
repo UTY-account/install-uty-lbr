@@ -1,20 +1,32 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaD1 } from '@prisma/adapter-d1';
+import { getCloudflareContext } from '@opennextjs/cloudflare';
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+let cloudflarePrismaInstance: PrismaClient | null = null;
 
-export function getPrismaClient(d1?: any): PrismaClient {
-  const activeD1 = d1 || (globalThis as any).DB || (process.env as any).DB;
-  if (activeD1) {
+export function getPrisma(): PrismaClient {
+  let dbBinding: any = (globalThis as any).DB || (process.env as any).DB;
+
+  if (!dbBinding) {
     try {
-      const adapter = new PrismaD1(activeD1);
-      return new PrismaClient({ adapter: adapter as any, log: ['error'] } as any);
-    } catch (e) {
-      console.warn('Fallback to standard PrismaClient:', e);
-    }
+      const ctx = getCloudflareContext();
+      if (ctx?.env?.DB) {
+        dbBinding = ctx.env.DB;
+      }
+    } catch (_) {}
   }
+
+  if (dbBinding) {
+    if (!cloudflarePrismaInstance) {
+      const adapter = new PrismaD1(dbBinding);
+      cloudflarePrismaInstance = new PrismaClient({ adapter: adapter as any, log: ['error'] } as any);
+    }
+    return cloudflarePrismaInstance;
+  }
+
+  const globalForPrisma = globalThis as unknown as {
+    prisma: PrismaClient | undefined;
+  };
 
   if (!globalForPrisma.prisma) {
     globalForPrisma.prisma = new PrismaClient({
@@ -24,6 +36,13 @@ export function getPrismaClient(d1?: any): PrismaClient {
   return globalForPrisma.prisma;
 }
 
-export const prisma = getPrismaClient();
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop) {
+    const client = getPrisma();
+    const value = (client as any)[prop];
+    if (typeof value === 'function') {
+      return value.bind(client);
+    }
+    return value;
+  },
+});
