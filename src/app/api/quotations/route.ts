@@ -70,71 +70,67 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'ไม่พบบริษัทที่ระบุ' }, { status: 404 });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Generate sequential Quotation Number [COMP_CODE]-QT-[SO_NO]-[SEQ] (e.g. CP1-QT-SO260817-0001-01) or [COMP_CODE]-QT-YYMM-XXXX
-      const date = quotationDate ? new Date(quotationDate) : new Date();
-      const count = await tx.subQuotation.count({
-        where: { companyId: company.id },
-      });
-      const quotationNo = formatQuotationCode(
-        company.code,
-        count + 1,
-        date,
-        soNumber,
-        contractorSeq ? parseInt(contractorSeq) : 1
-      );
+    // 1. Generate sequential Quotation Number [COMP_CODE]-QT-[SO_NO]-[SEQ] (e.g. CP1-QT-SO260817-0001-01) or [COMP_CODE]-QT-YYMM-XXXX
+    const date = quotationDate ? new Date(quotationDate) : new Date();
+    const count = await prisma.subQuotation.count({
+      where: { companyId: company.id },
+    });
+    const quotationNo = formatQuotationCode(
+      company.code,
+      count + 1,
+      date,
+      soNumber,
+      contractorSeq ? parseInt(contractorSeq) : 1
+    );
 
-      // 2. Process Items
-      const itemsData = items.map((it: any) => {
-        const qty = parseFloat(it.quantity) || 0;
-        const rate = parseFloat(it.unitRate) || 0;
-        return {
-          itemId: it.itemId || null,
-          itemCode: it.itemCode?.trim() || 'ITEM-GEN',
-          itemName: it.itemName?.trim() || 'งานติดตั้ง',
-          quantity: qty,
-          unit: it.unit?.trim() || 'หน่วย',
-          unitRate: rate,
-          totalAmount: qty * rate,
-          notes: it.notes?.trim() || null,
-        };
-      });
-
-      const subtotal = itemsData.reduce((sum: number, it: any) => sum + it.totalAmount, 0);
-      const taxPercent = whtRate !== undefined ? parseFloat(whtRate) : 3.0;
-      const whtAmount = Math.round((subtotal * (taxPercent / 100)) * 100) / 100;
-      const grandTotal = Math.round((subtotal - whtAmount) * 100) / 100;
-
-      // 3. Create SubQuotation
-      const quotation = await tx.subQuotation.create({
-        data: {
-          companyId: company.id,
-          subcontractorId,
-          quotationNo,
-          quotationDate: date,
-          validUntil: validUntil ? new Date(validUntil) : null,
-          projectName: projectName.trim(),
-          subtotal,
-          whtRate: taxPercent,
-          whtAmount,
-          grandTotal,
-          status: 'DRAFT',
-          notes: notes?.trim() || null,
-          items: {
-            create: itemsData,
-          },
-        },
-        include: {
-          company: true,
-          subcontractor: true,
-          items: true,
-        },
-      });
-
-      return quotation;
+    // 2. Process Items
+    const itemsData = items.map((it: any) => {
+      const qty = parseFloat(it.quantity) || 0;
+      const rate = parseFloat(it.unitRate) || 0;
+      return {
+        itemId: it.itemId || null,
+        itemCode: it.itemCode?.trim() || 'ITEM-GEN',
+        itemName: it.itemName?.trim() || 'งานติดตั้ง',
+        quantity: qty,
+        unit: it.unit?.trim() || 'หน่วย',
+        unitRate: rate,
+        totalAmount: qty * rate,
+        notes: it.notes?.trim() || null,
+      };
     });
 
-    return NextResponse.json(result, { status: 201 });
+    const subtotal = itemsData.reduce((sum: number, it: any) => sum + it.totalAmount, 0);
+    const taxPercent = whtRate !== undefined ? parseFloat(whtRate) : 3.0;
+    const whtAmount = Math.round((subtotal * (taxPercent / 100)) * 100) / 100;
+    const grandTotal = Math.round((subtotal - whtAmount) * 100) / 100;
+
+    // 3. Create SubQuotation
+    const quotation = await prisma.subQuotation.create({
+      data: {
+        companyId: company.id,
+        subcontractorId,
+        quotationNo,
+        quotationDate: date,
+        validUntil: validUntil ? new Date(validUntil) : null,
+        projectName: projectName.trim(),
+        subtotal,
+        whtRate: taxPercent,
+        whtAmount,
+        grandTotal,
+        status: 'DRAFT',
+        notes: notes?.trim() || null,
+        items: {
+          create: itemsData,
+        },
+      },
+      include: {
+        company: true,
+        subcontractor: true,
+        items: true,
+      },
+    });
+
+    return NextResponse.json(quotation, { status: 201 });
   } catch (error: any) {
     console.error('Error creating quotation:', error);
     return NextResponse.json({ error: error.message || 'Failed to create quotation' }, { status: 500 });

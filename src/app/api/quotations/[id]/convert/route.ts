@@ -27,103 +27,95 @@ export async function POST(
       );
     }
 
-    // Atomic transaction: Create Job, Create SubContract, Create SubContractItems, Log ItemRateHistory, Mark Quotation as CONVERTED
-    const result = await prisma.$transaction(async (tx) => {
-      const date = new Date();
-      const jobCount = await tx.job.count({
-        where: { companyId: quotation.companyId },
-      });
+    const date = new Date();
+    const jobCount = await prisma.job.count({
+      where: { companyId: quotation.companyId },
+    });
 
-      // Check if quotationNo contains SO pattern (e.g. CP1-QT-SO260817-0001-01 -> SO260817-0001)
-      let extractedSO: string | null = null;
-      let extractedSeq = 1;
-      const soMatch = quotation.quotationNo.match(/QT-(SO[A-Za-z0-9-]+?)(?:-(\d{2}))?$/i);
-      if (soMatch) {
-        extractedSO = soMatch[1];
-        if (soMatch[2]) extractedSeq = parseInt(soMatch[2]);
-      }
+    // Check if quotationNo contains SO pattern (e.g. CP1-QT-SO260817-0001-01 -> SO260817-0001)
+    let extractedSO: string | null = null;
+    let extractedSeq = 1;
+    const soMatch = quotation.quotationNo.match(/QT-(SO[A-Za-z0-9-]+?)(?:-(\d{2}))?$/i);
+    if (soMatch) {
+      extractedSO = soMatch[1];
+      if (soMatch[2]) extractedSeq = parseInt(soMatch[2]);
+    }
 
-      const jobCode = formatJobCodeWithSO(quotation.company.code, jobCount + 1, extractedSO, date);
-      const scCode = formatSubContractCodeWithSO(quotation.company.code, jobCount * 10 + 1, extractedSO, extractedSeq, date);
+    const jobCode = formatJobCodeWithSO(quotation.company.code, jobCount + 1, extractedSO, date);
+    const scCode = formatSubContractCodeWithSO(quotation.company.code, jobCount * 10 + 1, extractedSO, extractedSeq, date);
 
-      // 1. Create Job
-      const createdJob = await tx.job.create({
-        data: {
-          companyId: quotation.companyId,
-          jobCode,
-          title: quotation.projectName,
-          customerName: 'แปลงจากใบเสนอราคา ' + quotation.quotationNo,
-          status: 'IN_PROGRESS',
-          notes: `สร้างอัตโนมัติจากใบเสนอราคา ${quotation.quotationNo} โดย ${quotation.subcontractor.name}`,
+    // 1. Create Job
+    const createdJob = await prisma.job.create({
+      data: {
+        companyId: quotation.companyId,
+        jobCode,
+        title: quotation.projectName,
+        customerName: 'แปลงจากใบเสนอราคา ' + quotation.quotationNo,
+        status: 'IN_PROGRESS',
+        notes: `สร้างอัตโนมัติจากใบเสนอราคา ${quotation.quotationNo} โดย ${quotation.subcontractor.name}`,
+      },
+    });
+
+    // 2. Prepare items
+    const itemsData = quotation.items.map((it) => ({
+      itemId: it.itemId,
+      itemCode: it.itemCode,
+      itemName: it.itemName,
+      quantity: it.quantity,
+      unit: it.unit,
+      unitRate: it.unitRate,
+      totalAmount: it.totalAmount,
+      notes: it.notes,
+    }));
+
+    // 3. Create SubContract
+    const createdContract = await prisma.subContract.create({
+      data: {
+        jobId: createdJob.id,
+        subcontractorId: quotation.subcontractorId,
+        contractCode: scCode,
+        contractDate: new Date(),
+        totalContractAmount: quotation.subtotal,
+        extraAmount: 0,
+        deductAmount: 0,
+        status: 'ACTIVE',
+        notes: `อ้างอิงใบเสนอราคา ${quotation.quotationNo}`,
+        items: {
+          create: itemsData,
         },
-      });
+      },
+    });
 
-      // 2. Prepare items
-      const itemsData = quotation.items.map((it) => ({
-        itemId: it.itemId,
-        itemCode: it.itemCode,
-        itemName: it.itemName,
-        quantity: it.quantity,
-        unit: it.unit,
-        unitRate: it.unitRate,
-        totalAmount: it.totalAmount,
-        notes: it.notes,
-      }));
-
-      // 3. Create SubContract
-      const createdContract = await tx.subContract.create({
-        data: {
-          jobId: createdJob.id,
-          subcontractorId: quotation.subcontractorId,
-          contractCode: scCode,
-          contractDate: new Date(),
-          totalContractAmount: quotation.subtotal,
-          extraAmount: 0,
-          deductAmount: 0,
-          status: 'ACTIVE',
-          notes: `อ้างอิงใบเสนอราคา ${quotation.quotationNo}`,
-          items: {
-            create: itemsData,
+    // 4. Record Unit Rate History for benchmarking
+    for (const it of quotation.items) {
+      if (it.itemId && it.unitRate > 0) {
+        await prisma.itemRateHistory.create({
+          data: {
+            itemId: it.itemId,
+            subcontractorId: quotation.subcontractorId,
+            unitRate: it.unitRate,
+            jobCode: createdJob.jobCode,
+            jobTitle: createdJob.title,
+            notes: `แปลงจากใบเสนอราคา ${quotation.quotationNo}`,
           },
-        },
-      });
-
-      // 4. Record Unit Rate History for benchmarking
-      for (const it of quotation.items) {
-        if (it.itemId && it.unitRate > 0) {
-          await tx.itemRateHistory.create({
-            data: {
-              itemId: it.itemId,
-              subcontractorId: quotation.subcontractorId,
-              unitRate: it.unitRate,
-              jobCode: createdJob.jobCode,
-              jobTitle: createdJob.title,
-              notes: `แปลงจากใบเสนอราคา ${quotation.quotationNo}`,
-            },
-          });
-        }
+        });
       }
+    }
 
-      // 5. Update Quotation Status
-      await tx.subQuotation.update({
-        where: { id: quotation.id },
-        data: {
-          status: 'CONVERTED',
-          convertedJobId: createdJob.id,
-        },
-      });
-
-      return {
-        job: createdJob,
-        contract: createdContract,
-      };
+    // 5. Update Quotation Status
+    await prisma.subQuotation.update({
+      where: { id: quotation.id },
+      data: {
+        status: 'CONVERTED',
+        convertedJobId: createdJob.id,
+      },
     });
 
     return NextResponse.json(
       {
         success: true,
-        message: `แปลงใบเสนอราคาเป็นงานติดตั้ง ${result.job.jobCode} สำเร็จแล้ว`,
-        job: result.job,
+        message: `แปลงใบเสนอราคาเป็นงานติดตั้ง ${createdJob.jobCode} สำเร็จแล้ว`,
+        job: createdJob,
       },
       { status: 201 }
     );

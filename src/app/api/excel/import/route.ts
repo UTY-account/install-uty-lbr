@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { parseExcelBuffer, groupExcelRows } from '@/lib/excel-helper';
-import { formatCode } from '@/lib/utils';
+import { formatCode, formatDate } from '@/lib/utils';
 
 export async function POST(req: NextRequest) {
   try {
@@ -107,143 +107,141 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 5. Execute Full Database Transaction (Atomic Commit)
-    const importResult = await prisma.$transaction(async (tx) => {
-      const createdJobsList = [];
-      let newContractorsCreatedCount = 0;
-      let newItemsCreatedCount = 0;
-      const date = new Date();
+    // 5. Execute Full Database Operations (Sequential for Cloudflare D1)
+    const createdJobsList = [];
+    let newContractorsCreatedCount = 0;
+    let newItemsCreatedCount = 0;
+    const date = new Date();
 
-      // Step A: Find-or-Create Subcontractors
-      const activeSubMap = new Map<string, any>(subMap);
+    // Step A: Find-or-Create Subcontractors
+    const activeSubMap = new Map<string, any>(subMap);
 
-      for (const row of parsedRows) {
-        if (!activeSubMap.has(row.subcontractorIdCard)) {
-          const newSub = await tx.subcontractor.create({
-            data: {
-              idCard: row.subcontractorIdCard,
-              name: row.subcontractorName,
-              phone: row.subcontractorPhone || '080-000-0000',
-              bankName: row.bankName || null,
-              bankAccountNo: row.bankAccount || null,
-              bankAccountName: row.subcontractorName,
-              idCardStatus: 'PENDING_ATTACHMENT', // New imported subcontractor requires ID attachment
-              skills: 'นำเข้าจากระบบ Excel',
-              status: 'ACTIVE',
-              notes: `สร้างอัตโนมัติจากการนำเข้า Excel วันที่ ${date.toLocaleDateString('th-TH')}`,
-            },
-          });
-          activeSubMap.set(row.subcontractorIdCard, newSub);
-          newContractorsCreatedCount++;
-        }
-      }
-
-      // Step B: Auto-create Items if not existing
-      const activeItemMap = new Map<string, any>(itemMap);
-      for (const row of parsedRows) {
-        if (!activeItemMap.has(row.itemCode)) {
-          const newItem = await tx.item.create({
-            data: {
-              code: row.itemCode,
-              name: row.itemName,
-              unit: row.unit,
-              standardRate: row.unitRate,
-              category: 'งานทั่วไป',
-              description: 'สร้างอัตโนมัติจากการนำเข้า Excel',
-            },
-          });
-          activeItemMap.set(row.itemCode, newItem);
-          newItemsCreatedCount++;
-        }
-      }
-
-      // Step C: Create Jobs, SubContracts, SubContractItems, and log ItemRateHistory
-      for (const gJob of groupedJobs) {
-        const company = companyMap.get(gJob.companyCode)!;
-
-        // Sequence number for Job Code
-        const jobCount = await tx.job.count({
-          where: { companyId: company.id },
-        });
-        const jobCode = formatCode('JOB', company.code, jobCount + 1, date);
-
-        const createdJob = await tx.job.create({
+    for (const row of parsedRows) {
+      if (!activeSubMap.has(row.subcontractorIdCard)) {
+        const newSub = await prisma.subcontractor.create({
           data: {
-            companyId: company.id,
-            jobCode,
-            title: gJob.jobTitle,
-            customerName: gJob.customerName || null,
-            customerPhone: gJob.customerPhone || null,
-            status: 'IN_PROGRESS',
-            notes: `นำเข้าจาก Excel (${gJob.contracts.length} ช่าง, ${gJob.totalItemsCount} รายการ)`,
+            idCard: row.subcontractorIdCard,
+            name: row.subcontractorName,
+            phone: row.subcontractorPhone || '080-000-0000',
+            bankName: row.bankName || null,
+            bankAccountNo: row.bankAccount || null,
+            bankAccountName: row.subcontractorName,
+            idCardStatus: 'PENDING_ATTACHMENT', // New imported subcontractor requires ID attachment
+            skills: 'นำเข้าจากระบบ Excel',
+            status: 'ACTIVE',
+            notes: `สร้างอัตโนมัติจากการนำเข้า Excel วันที่ ${formatDate(date)}`,
+          },
+        });
+        activeSubMap.set(row.subcontractorIdCard, newSub);
+        newContractorsCreatedCount++;
+      }
+    }
+
+    // Step B: Auto-create Items if not existing
+    const activeItemMap = new Map<string, any>(itemMap);
+    for (const row of parsedRows) {
+      if (!activeItemMap.has(row.itemCode)) {
+        const newItem = await prisma.item.create({
+          data: {
+            code: row.itemCode,
+            name: row.itemName,
+            unit: row.unit,
+            standardRate: row.unitRate,
+            category: 'งานทั่วไป',
+            description: 'สร้างอัตโนมัติจากการนำเข้า Excel',
+          },
+        });
+        activeItemMap.set(row.itemCode, newItem);
+        newItemsCreatedCount++;
+      }
+    }
+
+    // Step C: Create Jobs, SubContracts, SubContractItems, and log ItemRateHistory
+    for (const gJob of groupedJobs) {
+      const company = companyMap.get(gJob.companyCode)!;
+
+      // Sequence number for Job Code
+      const jobCount = await prisma.job.count({
+        where: { companyId: company.id },
+      });
+      const jobCode = formatCode('JOB', company.code, jobCount + 1, date);
+
+      const createdJob = await prisma.job.create({
+        data: {
+          companyId: company.id,
+          jobCode,
+          title: gJob.jobTitle,
+          customerName: gJob.customerName || null,
+          customerPhone: gJob.customerPhone || null,
+          status: 'IN_PROGRESS',
+          notes: `นำเข้าจาก Excel (${gJob.contracts.length} ช่าง, ${gJob.totalItemsCount} รายการ)`,
+        },
+      });
+
+      let scIndex = 1;
+      for (const gContract of gJob.contracts) {
+        const sub = activeSubMap.get(gContract.subcontractorIdCard)!;
+        const scCode = formatCode('SC', company.code, jobCount * 10 + scIndex, date);
+        scIndex++;
+
+        const itemsData = gContract.items.map((it) => {
+          const dbItem = activeItemMap.get(it.itemCode);
+          return {
+            itemId: dbItem ? dbItem.id : null,
+            itemCode: it.itemCode,
+            itemName: it.itemName,
+            quantity: it.quantity,
+            unit: it.unit,
+            unitRate: it.unitRate,
+            totalAmount: it.totalAmount,
+            notes: it.notes || null,
+          };
+        });
+
+        const createdContract = await prisma.subContract.create({
+          data: {
+            jobId: createdJob.id,
+            subcontractorId: sub.id,
+            contractCode: scCode,
+            contractDate: date,
+            totalContractAmount: gContract.totalAmount,
+            extraAmount: 0,
+            deductAmount: 0,
+            status: 'ACTIVE',
+            notes: `สร้างอัตโนมัติจาก Excel (${itemsData.length} รายการ)`,
+            items: {
+              create: itemsData,
+            },
           },
         });
 
-        let scIndex = 1;
-        for (const gContract of gJob.contracts) {
-          const sub = activeSubMap.get(gContract.subcontractorIdCard)!;
-          const scCode = formatCode('SC', company.code, jobCount * 10 + scIndex, date);
-          scIndex++;
-
-          const itemsData = gContract.items.map((it) => {
-            const dbItem = activeItemMap.get(it.itemCode);
-            return {
-              itemId: dbItem ? dbItem.id : null,
-              itemCode: it.itemCode,
-              itemName: it.itemName,
-              quantity: it.quantity,
-              unit: it.unit,
-              unitRate: it.unitRate,
-              totalAmount: it.totalAmount,
-              notes: it.notes || null,
-            };
-          });
-
-          const createdContract = await tx.subContract.create({
-            data: {
-              jobId: createdJob.id,
-              subcontractorId: sub.id,
-              contractCode: scCode,
-              contractDate: date,
-              totalContractAmount: gContract.totalAmount,
-              extraAmount: 0,
-              deductAmount: 0,
-              status: 'ACTIVE',
-              notes: `สร้างอัตโนมัติจาก Excel (${itemsData.length} รายการ)`,
-              items: {
-                create: itemsData,
+        // Record each item rate into ItemRateHistory
+        for (const it of itemsData) {
+          if (it.itemId && it.unitRate > 0) {
+            await prisma.itemRateHistory.create({
+              data: {
+                itemId: it.itemId,
+                subcontractorId: sub.id,
+                unitRate: it.unitRate,
+                jobCode: createdJob.jobCode,
+                jobTitle: createdJob.title,
+                notes: `นำเข้า Excel สัญญา ${scCode} (${it.quantity} ${it.unit})`,
               },
-            },
-          });
-
-          // Record each item rate into ItemRateHistory
-          for (const it of itemsData) {
-            if (it.itemId && it.unitRate > 0) {
-              await tx.itemRateHistory.create({
-                data: {
-                  itemId: it.itemId,
-                  subcontractorId: sub.id,
-                  unitRate: it.unitRate,
-                  jobCode: createdJob.jobCode,
-                  jobTitle: createdJob.title,
-                  notes: `นำเข้า Excel สัญญา ${scCode} (${it.quantity} ${it.unit})`,
-                },
-              });
-            }
+            });
           }
         }
-
-        createdJobsList.push(createdJob);
       }
 
-      return {
-        createdJobsCount: createdJobsList.length,
-        newContractorsCreatedCount,
-        newItemsCreatedCount,
-        totalImportedRows: parsedRows.length,
-        createdJobsList,
-      };
-    });
+      createdJobsList.push(createdJob);
+    }
+
+    const importResult = {
+      createdJobsCount: createdJobsList.length,
+      newContractorsCreatedCount,
+      newItemsCreatedCount,
+      totalImportedRows: parsedRows.length,
+      createdJobsList,
+    };
 
     return NextResponse.json(
       {

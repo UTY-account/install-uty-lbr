@@ -136,98 +136,93 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'ไม่พบบริษัทที่ระบุ' }, { status: 404 });
     }
 
-    // Execute in atomic transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Generate sequential Job Code [COMP_CODE]-[SO_NO] or [COMP_CODE]-JOB-YYYYMM-XXXX
-      const date = new Date();
-      const jobCount = await tx.job.count({
-        where: { companyId: company.id },
-      });
-      const jobCode = formatJobCodeWithSO(company.code, jobCount + 1, soNumber, date);
+    // 1. Generate sequential Job Code [COMP_CODE]-[SO_NO] or [COMP_CODE]-JOB-YYYYMM-XXXX
+    const date = new Date();
+    const jobCount = await prisma.job.count({
+      where: { companyId: company.id },
+    });
+    const jobCode = formatJobCodeWithSO(company.code, jobCount + 1, soNumber, date);
 
-      // 2. Create Job
-      const createdJob = await tx.job.create({
-        data: {
-          companyId: company.id,
-          jobCode,
-          title: title.trim(),
-          customerName: customerName?.trim() || null,
-          customerPhone: customerPhone?.trim() || null,
-          siteLocation: siteLocation?.trim() || null,
-          startDate: startDate ? new Date(startDate) : null,
-          endDate: endDate ? new Date(endDate) : null,
-          notes: notes?.trim() || null,
-          status: 'IN_PROGRESS',
-        },
-      });
+    // 2. Create Job
+    const createdJob = await prisma.job.create({
+      data: {
+        companyId: company.id,
+        jobCode,
+        title: title.trim(),
+        customerName: customerName?.trim() || null,
+        customerPhone: customerPhone?.trim() || null,
+        siteLocation: siteLocation?.trim() || null,
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : null,
+        notes: notes?.trim() || null,
+        status: 'IN_PROGRESS',
+      },
+    });
 
-      // 3. Create SubContracts & Multi-Items
-      if (contracts && Array.isArray(contracts) && contracts.length > 0) {
-        let contractSeq = 1;
+    // 3. Create SubContracts & Multi-Items
+    if (contracts && Array.isArray(contracts) && contracts.length > 0) {
+      let contractSeq = 1;
 
-        for (const c of contracts) {
-          if (!c.subcontractorId) continue;
+      for (const c of contracts) {
+        if (!c.subcontractorId) continue;
 
-          const scCode = formatSubContractCodeWithSO(company.code, jobCount * 10 + contractSeq, soNumber, contractSeq, date);
-          contractSeq++;
+        const scCode = formatSubContractCodeWithSO(company.code, jobCount * 10 + contractSeq, soNumber, contractSeq, date);
+        contractSeq++;
 
-          const itemsData = (c.items || []).map((item: any) => {
-            const qty = parseFloat(item.quantity) || 0;
-            const rate = parseFloat(item.unitRate) || 0;
-            return {
-              itemId: item.itemId || null,
-              itemCode: item.itemCode?.trim() || 'ITEM-GEN',
-              itemName: item.itemName?.trim() || 'งานติดตั้ง',
-              quantity: qty,
-              unit: item.unit?.trim() || 'หน่วย',
-              unitRate: rate,
-              totalAmount: qty * rate,
-              notes: item.notes?.trim() || null,
-            };
-          });
+        const itemsData = (c.items || []).map((item: any) => {
+          const qty = parseFloat(item.quantity) || 0;
+          const rate = parseFloat(item.unitRate) || 0;
+          return {
+            itemId: item.itemId || null,
+            itemCode: item.itemCode?.trim() || 'ITEM-GEN',
+            itemName: item.itemName?.trim() || 'งานติดตั้ง',
+            quantity: qty,
+            unit: item.unit?.trim() || 'หน่วย',
+            unitRate: rate,
+            totalAmount: qty * rate,
+            notes: item.notes?.trim() || null,
+          };
+        });
 
-          // Total Contract Amount = Sum of items
-          const totalContractAmount = itemsData.reduce((sum: number, it: any) => sum + it.totalAmount, 0);
+        // Total Contract Amount = Sum of items
+        const totalContractAmount = itemsData.reduce((sum: number, it: any) => sum + it.totalAmount, 0);
 
-          const subContract = await tx.subContract.create({
-            data: {
-              jobId: createdJob.id,
-              subcontractorId: c.subcontractorId,
-              contractCode: scCode,
-              contractDate: new Date(),
-              totalContractAmount,
-              extraAmount: parseFloat(c.extraAmount) || 0,
-              deductAmount: parseFloat(c.deductAmount) || 0,
-              notes: c.notes?.trim() || null,
-              status: 'ACTIVE',
-              items: {
-                create: itemsData,
-              },
+        const subContract = await prisma.subContract.create({
+          data: {
+            jobId: createdJob.id,
+            subcontractorId: c.subcontractorId,
+            contractCode: scCode,
+            contractDate: new Date(),
+            totalContractAmount,
+            extraAmount: parseFloat(c.extraAmount) || 0,
+            deductAmount: parseFloat(c.deductAmount) || 0,
+            notes: c.notes?.trim() || null,
+            status: 'ACTIVE',
+            items: {
+              create: itemsData,
             },
-          });
+          },
+        });
 
-          // Record unit rates into ItemRateHistory for price benchmarking
-          for (const it of itemsData) {
-            if (it.itemId && it.unitRate > 0) {
-              await tx.itemRateHistory.create({
-                data: {
-                  itemId: it.itemId,
-                  subcontractorId: c.subcontractorId,
-                  unitRate: it.unitRate,
-                  jobCode: createdJob.jobCode,
-                  jobTitle: createdJob.title,
-                  notes: `สัญญา ${scCode} (${it.quantity} ${it.unit})`,
-                },
-              });
-            }
+        // Record unit rates into ItemRateHistory for price benchmarking
+        for (const it of itemsData) {
+          if (it.itemId && it.unitRate > 0) {
+            await prisma.itemRateHistory.create({
+              data: {
+                itemId: it.itemId,
+                subcontractorId: c.subcontractorId,
+                unitRate: it.unitRate,
+                jobCode: createdJob.jobCode,
+                jobTitle: createdJob.title,
+                notes: `สัญญา ${scCode} (${it.quantity} ${it.unit})`,
+              },
+            });
           }
         }
       }
+    }
 
-      return createdJob;
-    });
-
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json(createdJob, { status: 201 });
   } catch (error: any) {
     console.error('Error creating job:', error);
     return NextResponse.json({ error: error.message || 'Failed to create job' }, { status: 500 });

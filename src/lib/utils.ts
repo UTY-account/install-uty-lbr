@@ -28,28 +28,28 @@ export function formatNumber(amount: number | null | undefined, decimals = 2): s
   });
 }
 
-// Thai Date Formatter
-export function formatThaiDate(date: Date | string | null | undefined, includeTime = false): string {
+// Standard DD/MM/YYYY Date Formatter (e.g. 17/08/2026)
+export function formatDate(date: Date | string | null | undefined, includeTime = false): string {
   if (!date) return '-';
   const d = typeof date === 'string' ? new Date(date) : date;
   if (isNaN(d.getTime())) return '-';
-  
-  const thaiMonths = [
-    'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-    'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
-  ];
-  
-  const day = d.getDate();
-  const month = thaiMonths[d.getMonth()];
-  const year = d.getFullYear() + 543;
-  
+
+  const day = d.getDate().toString().padStart(2, '0');
+  const month = (d.getMonth() + 1).toString().padStart(2, '0');
+  const year = d.getFullYear();
+
   if (includeTime) {
     const hours = d.getHours().toString().padStart(2, '0');
     const mins = d.getMinutes().toString().padStart(2, '0');
-    return `${day} ${month} ${year} ${hours}:${mins} น.`;
+    return `${day}/${month}/${year} ${hours}:${mins}`;
   }
-  
-  return `${day} ${month} ${year}`;
+
+  return `${day}/${month}/${year}`;
+}
+
+// Thai Date Formatter -> Unified as DD/MM/YYYY
+export function formatThaiDate(date: Date | string | null | undefined, includeTime = false): string {
+  return formatDate(date, includeTime);
 }
 
 export function formatISODate(date: Date | string | null | undefined): string {
