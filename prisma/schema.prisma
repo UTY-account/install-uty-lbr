@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Company {
+  id          String         @id @default(cuid())
+  code        String         @unique // e.g. CP1, CP2
+  nameTh      String         // ชื่อบริษัท (ไทย)
+  nameEn      String?        // Company Name (EN)
+  taxId       String         // เลขประจำตัวผู้เสียภาษี 13 หลัก
+  phone       String?
+  email       String?
+  address     String         // ที่อยู่สำนักงาน
+  logoUrl     String?
+  bankInfo    String?        // บัญชีธนาคารบริษัท
+  jobs        Job[]
+  quotations  SubQuotation[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model Subcontractor {
+  id              String            @id @default(cuid())
+  idCard          String            @unique // เลขบัตร ปชช. 13 หลัก
+  name            String            // ชื่อ-นามสกุล ช่าง / ห้างหุ้นส่วน
+  phone           String
+  bankName        String?           // ธนาคาร
+  bankAccountNo   String?           // เลขบัญชี
+  bankAccountName String?           // ชื่อบัญชี
+  idCardPhotoUrl  String?           // รูปถ่ายบัตรประชาชน
+  idCardStatus    String            @default("PENDING_ATTACHMENT") // VERIFIED | PENDING_ATTACHMENT (รอแนบรูปบัตร ปชช.)
+  skills          String?           // ความถนัด/ประเภทงาน
+  address         String?           // ที่อยู่ตามบัตร ปชช.
+  status          String            @default("ACTIVE") // ACTIVE | INACTIVE
+  notes           String?
+  contracts       SubContract[]
+  rateHistory     ItemRateHistory[]
+  quotations      SubQuotation[]
+  schedules       WorkSchedule[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+model Item {
+  id             String             @id @default(cuid())
+  code           String             @unique // รหัสรายการมาตรฐาน e.g. ITEM-WOOD-001
+  name           String             // ชื่องาน/รายละเอียด
+  category       String?            // หมวดหมู่งาน e.g. งานพื้น, งานผนัง, งานฝ้า
+  unit           String             // หน่วยนับ e.g. ตร.ม., ม., จุด, ห้อง
+  standardRate   Float              @default(0) // ราคากลาง/ราคามาตรฐาน
+  description    String?
+  contractItems  SubContractItem[]
+  rateHistory    ItemRateHistory[]
+  quotationItems SubQuotationItem[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+}
+
+model ItemRateHistory {
+  id              String        @id @default(cuid())
+  itemId          String
+  item            Item          @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  subcontractorId String
+  subcontractor   Subcontractor @relation(fields: [subcontractorId], references: [id], onDelete: Cascade)
+  unitRate        Float         // ราคาต่อหน่วยที่ตกลง
+  jobCode         String?       // รหัสงานที่บันทึก
+  jobTitle        String?       // ชื่องาน
+  recordedAt      DateTime      @default(now())
+  notes           String?
+}
+
+model Job {
+  id            String         @id @default(cuid())
+  companyId     String
+  company       Company        @relation(fields: [companyId], references: [id])
+  jobCode       String         @unique // [COMP_CODE]-JOB-YYYYMM-XXXX
+  title         String         // ชื่องาน / สถานที่ติดตั้ง
+  customerName  String?        // ชื่อลูกค้า / โครงการ
+  customerPhone String?
+  siteLocation  String?        // สถานที่ / เลขที่ห้อง
+  status        String         @default("IN_PROGRESS") // DRAFT | IN_PROGRESS | COMPLETED | CANCELLED
+  startDate     DateTime?
+  endDate       DateTime?
+  notes         String?
+  subContracts  SubContract[]
+  schedules     WorkSchedule[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model SubContract {
+  id                  String            @id @default(cuid())
+  jobId               String
+  job                 Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  subcontractorId     String
+  subcontractor       Subcontractor     @relation(fields: [subcontractorId], references: [id])
+  contractCode        String            @unique // [COMP_CODE]-SC-YYYYMM-XXXX
+  contractDate        DateTime          @default(now())
+  totalContractAmount Float             @default(0) // ยอดสัญญารวม (Sum of all SubContractItems)
+  extraAmount         Float             @default(0) // งานเพิ่ม
+  deductAmount        Float             @default(0) // งานลด / ค่าปรับ
+  status              String            @default("ACTIVE") // ACTIVE | COMPLETED | TERMINATED
+  notes               String?
+  items               SubContractItem[]
+  payments            SubPayment[]
+  schedules           WorkSchedule[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+}
+
+model SubContractItem {
+  id            String      @id @default(cuid())
+  subContractId String
+  subContract   SubContract @relation(fields: [subContractId], references: [id], onDelete: Cascade)
+  itemId        String?
+  item          Item?       @relation(fields: [itemId], references: [id])
+  itemCode      String      // รหัสรายการ เช่น ITEM-WOOD-001
+  itemName      String      // ชื่องานย่อย
+  quantity      Float       // ปริมาณ
+  unit          String      // หน่วยนับ
+  unitRate      Float       // ราคาต่อหน่วย
+  totalAmount   Float       // ยอดรวมรายการ (quantity * unitRate)
+  notes         String?
+}
+
+model SubPayment {
+  id            String      @id @default(cuid())
+  subContractId String
+  subContract   SubContract @relation(fields: [subContractId], references: [id], onDelete: Cascade)
+  installmentNo Int         // งวดที่ 1, 2, 3...
+  paymentDate   DateTime    @default(now())
+  amount        Float       // ยอดเงินงวดนี้ (ก่อนหักภาษี)
+  whtRate       Float       @default(3.0) // อัตราภาษีหัก ณ ที่จ่าย % (3%)
+  whtAmount     Float       // ยอดภาษีหัก ณ ที่จ่าย (amount * 0.03)
+  netAmount     Float       // ยอดโอนสุทธิ (amount - whtAmount)
+  slipUrl       String?     // แนบรูปสลิปโอนเงิน / Base64
+  refNo         String?     // เลขที่อ้างอิงโอนเงิน / เลขที่เช็ค
+  notes         String?
+  status        String      @default("PAID") // PENDING | PAID | CANCELLED
+  editHistory   String?     // JSON Array string storing audit history of edits
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @default(now()) @updatedAt
+}
+
+model WorkSchedule {
+  id                  String        @id @default(cuid())
+  jobId               String
+  job                 Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  subContractId       String?
+  subContract         SubContract?  @relation(fields: [subContractId], references: [id], onDelete: Cascade)
+  subcontractorId     String
+  subcontractor       Subcontractor @relation(fields: [subcontractorId], references: [id], onDelete: Cascade)
+  
+  title               String        // หัวข้อกิจกรรม เช่น เข้าติดตั้งพื้น SPC ชั้น 1
+  description         String?       // รายละเอียดงาน
+  taskCategory        String?       // หมวดงาน (เตรียมหน้างาน, งานหลัก, เก็บงาน, ตรวจรับ)
+  startDate           DateTime      // วันที่เริ่มเข้าทำงาน
+  endDate             DateTime      // วันที่คาดว่าจะเสร็จ
+  status              String        @default("PLANNED") // PLANNED | IN_PROGRESS | COMPLETED | DELAYED | CANCELLED
+  progressPercent     Int           @default(0) // ความคืบหน้า 0 - 100%
+  
+  linkedInstallmentNo Int?          // ผูกกับงวดเงินที่ เช่น งวดที่ 1, งวดที่ 2
+  targetAmount        Float?        // ยอดเงินที่คาดว่าจะเบิกจ่าย
+  
+  delayReason         String?       // บันทึกสาเหตุหากงานล่าช้า
+  notes               String?       // หมายเหตุทั่วไป
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+}
+
+model SubQuotation {
+  id              String             @id @default(cuid())
+  companyId       String
+  company         Company            @relation(fields: [companyId], references: [id])
+  subcontractorId String
+  subcontractor   Subcontractor      @relation(fields: [subcontractorId], references: [id])
+  quotationNo     String             @unique // [COMP_CODE]-SUBQT-YYYYMM-XXXX
+  quotationDate   DateTime           @default(now())
+  validUntil      DateTime?
+  projectName     String             // ชื่อโครงการ / สถานที่
+  subtotal        Float              @default(0)
+  whtRate         Float              @default(3.0)
+  whtAmount       Float              @default(0)
+  grandTotal      Float              @default(0)
+  status          String             @default("DRAFT") // DRAFT | ACCEPTED | CONVERTED | REJECTED
+  convertedJobId  String?
+  notes           String?
+  items           SubQuotationItem[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+}
+
+model SubQuotationItem {
+  id             String       @id @default(cuid())
+  subQuotationId String
+  subQuotation   SubQuotation @relation(fields: [subQuotationId], references: [id], onDelete: Cascade)
+  itemId         String?
+  item           Item?        @relation(fields: [itemId], references: [id])
+  itemCode       String
+  itemName       String
+  quantity       Float
+  unit           String
+  unitRate       Float
+  totalAmount    Float
+  notes          String?
+}
