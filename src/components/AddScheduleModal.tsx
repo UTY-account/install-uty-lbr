@@ -14,6 +14,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { formatCurrency, formatISODate } from '@/lib/utils';
+import DatePicker from '@/components/DatePicker';
 
 interface AddScheduleModalProps {
   initialJobId?: string;
@@ -254,26 +255,22 @@ export function AddScheduleModal({
             {/* Start & End Date */}
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">
-                วันที่เริ่มเข้าทำงาน *
+                วันที่เริ่มเข้าทำงาน (DD/MM/YYYY) *
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-medium text-slate-900 focus:ring-2 focus:ring-blue-500 shadow-2xs"
+                onChange={setStartDate}
                 required
               />
             </div>
 
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">
-                วันที่คาดว่าจะเสร็จสิ้น
+                วันที่คาดว่าจะเสร็จสิ้น (DD/MM/YYYY) *
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-medium text-slate-900 focus:ring-2 focus:ring-blue-500 shadow-2xs"
+                onChange={setEndDate}
                 required
               />
             </div>

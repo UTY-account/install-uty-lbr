@@ -17,6 +17,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { useCompany } from '@/components/CompanyContext';
+import DatePicker from '@/components/DatePicker';
 import { formatCurrency } from '@/lib/utils';
 
 interface ContractItemDraft {
@@ -413,25 +414,21 @@ export default function NewJobPage() {
 
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">
-                วันที่เริ่มงาน
+                วันที่เริ่มงาน (DD/MM/YYYY)
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 shadow-2xs"
+                onChange={setStartDate}
               />
             </div>
 
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">
-                วันที่คาดว่าจะแล้วเสร็จ
+                วันที่คาดว่าจะแล้วเสร็จ (DD/MM/YYYY)
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 shadow-2xs"
+                onChange={setEndDate}
               />
             </div>
           </div>

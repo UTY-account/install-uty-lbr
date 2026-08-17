@@ -16,6 +16,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { formatCurrency, formatMoney, formatThaiDate, formatISODate } from '@/lib/utils';
+import DatePicker from '@/components/DatePicker';
 
 interface EditPaymentModalProps {
   payment: {
@@ -272,13 +273,11 @@ export function EditPaymentModal({ payment, contract, onClose, onSuccess }: Edit
 
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">
-                  วันที่จ่ายเงิน
+                  วันที่จ่ายเงิน (DD/MM/YYYY) *
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   value={paymentDate}
-                  onChange={(e) => setPaymentDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-blue-500"
+                  onChange={setPaymentDate}
                   required
                 />
               </div>

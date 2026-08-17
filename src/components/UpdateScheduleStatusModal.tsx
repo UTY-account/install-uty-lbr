@@ -15,6 +15,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { formatCurrency, formatThaiDate, formatISODate } from '@/lib/utils';
+import DatePicker from '@/components/DatePicker';
 
 interface UpdateScheduleStatusModalProps {
   schedule: {
@@ -281,21 +282,17 @@ export function UpdateScheduleStatusModal({
           {/* Start & End Dates Adjustment */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">วันที่เริ่มเข้างาน</label>
-              <input
-                type="date"
+              <label className="text-xs font-bold text-slate-700 block mb-1">วันที่เริ่มเข้างาน (DD/MM/YYYY)</label>
+              <DatePicker
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-medium text-slate-900 shadow-2xs"
+                onChange={setStartDate}
               />
             </div>
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">วันที่สิ้นสุด/ส่งมอบ</label>
-              <input
-                type="date"
+              <label className="text-xs font-bold text-slate-700 block mb-1">วันที่สิ้นสุด/ส่งมอบ (DD/MM/YYYY)</label>
+              <DatePicker
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-medium text-slate-900 shadow-2xs"
+                onChange={setEndDate}
               />
             </div>
           </div>

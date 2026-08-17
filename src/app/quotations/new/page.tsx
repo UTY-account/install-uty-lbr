@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import DatePicker from '@/components/DatePicker';
 import {
   FileText,
   ArrowLeft,
@@ -623,26 +624,22 @@ function NewQuotationContent() {
 
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">
-                วันที่ออกเอกสาร
+                วันที่ออกเอกสาร (DD/MM/YYYY) *
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={quotationDate}
-                onChange={(e) => setQuotationDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 shadow-2xs"
+                onChange={setQuotationDate}
                 required
               />
             </div>
 
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">
-                กำหนดยืนราคาถึงวันที่
+                กำหนดยืนราคาถึงวันที่ (DD/MM/YYYY)
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={validUntil}
-                onChange={(e) => setValidUntil(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 shadow-2xs"
+                onChange={setValidUntil}
               />
             </div>
           </div>
