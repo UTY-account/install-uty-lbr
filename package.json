@@ -11,7 +11,8 @@
     "lint": "next lint",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "db:backup": "node scripts/backup-d1.js"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.20.2",
