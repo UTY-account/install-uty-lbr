@@ -104,11 +104,23 @@ export async function POST(req: NextRequest) {
     const whtAmount = Math.round((subtotal * (taxPercent / 100)) * 100) / 100;
     const grandTotal = Math.round((subtotal - whtAmount) * 100) / 100;
 
-    // 3. Create SubQuotation
+    // 3. Find SO if applicable
+    let linkedSOId: string | null = null;
+    if (body.soId) {
+      linkedSOId = body.soId;
+    } else if (soNumber && soNumber.trim()) {
+      const foundSO = await prisma.salesOrder.findUnique({
+        where: { soNumber: soNumber.trim() },
+      });
+      if (foundSO) linkedSOId = foundSO.id;
+    }
+
+    // 4. Create SubQuotation
     const quotation = await prisma.subQuotation.create({
       data: {
         companyId: company.id,
         subcontractorId,
+        salesOrderId: linkedSOId,
         quotationNo,
         quotationDate: date,
         validUntil: validUntil ? new Date(validUntil) : null,
@@ -118,6 +130,7 @@ export async function POST(req: NextRequest) {
         whtAmount,
         grandTotal,
         status: 'DRAFT',
+        paymentTerms: 'งวด 1: 40% (เข้าหน้างาน), งวด 2: 40% (เสร็จงาน), งวด 3: 20% (ลูกค้าตรวจรับ)',
         notes: notes?.trim() || null,
         items: {
           create: itemsData,
@@ -129,6 +142,14 @@ export async function POST(req: NextRequest) {
         items: true,
       },
     });
+
+    // If linked to SO, update SO status to SOURCING / CONFIRMED
+    if (linkedSOId) {
+      await prisma.salesOrder.update({
+        where: { id: linkedSOId },
+        data: { status: 'CONFIRMED' },
+      });
+    }
 
     return NextResponse.json(quotation, { status: 201 });
   } catch (error: any) {

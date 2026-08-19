@@ -48,6 +48,7 @@ export async function POST(
     const createdJob = await prisma.job.create({
       data: {
         companyId: quotation.companyId,
+        salesOrderId: quotation.salesOrderId || null,
         jobCode,
         title: quotation.projectName,
         customerName: 'แปลงจากใบเสนอราคา ' + quotation.quotationNo,
@@ -78,6 +79,7 @@ export async function POST(
         totalContractAmount: quotation.subtotal,
         extraAmount: 0,
         deductAmount: 0,
+        paymentTerms: quotation.paymentTerms || 'งวด 1: 40% (เข้าหน้างาน), งวด 2: 40% (เสร็จงาน), งวด 3: 20% (ลูกค้าตรวจรับ)',
         status: 'ACTIVE',
         notes: `อ้างอิงใบเสนอราคา ${quotation.quotationNo}`,
         items: {
@@ -110,6 +112,14 @@ export async function POST(
         convertedJobId: createdJob.id,
       },
     });
+
+    // 6. If linked to SO, update SO status to IN_PROGRESS
+    if (quotation.salesOrderId) {
+      await prisma.salesOrder.update({
+        where: { id: quotation.salesOrderId },
+        data: { status: 'IN_PROGRESS' },
+      });
+    }
 
     return NextResponse.json(
       {

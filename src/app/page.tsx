@@ -112,18 +112,25 @@ export default function DashboardPage() {
         {/* Quick Actions */}
         <div className="flex flex-wrap items-center gap-2.5">
           <Link
+            href="/sales-orders/new"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
+          >
+            <PlusCircle className="w-4 h-4" />
+            + เปิด SO จองคิวงาน
+          </Link>
+          <Link
+            href="/sales-orders"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs border border-slate-300 shadow-2xs transition-colors"
+          >
+            <FileText className="w-4 h-4 text-indigo-600" />
+            กระดาน SO & คิวงาน
+          </Link>
+          <Link
             href="/import-excel"
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99]"
           >
             <FileSpreadsheet className="w-4 h-4" />
             นำเข้า Excel
-          </Link>
-          <Link
-            href="/jobs/new"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99]"
-          >
-            <PlusCircle className="w-4 h-4" />
-            เปิดงานติดตั้งใหม่
           </Link>
           <Link
             href="/quotations/new"

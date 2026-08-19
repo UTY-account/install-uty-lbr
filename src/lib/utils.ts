@@ -190,3 +190,80 @@ export function formatSubContractCodeWithSO(
   const seqStr = seq.toString().padStart(4, '0');
   return `${compCode}-SC-${year}${month}-${seqStr}`;
 }
+
+// Generate SO Code: e.g. SO2608-0001 or [COMP_CODE]-SO-YYMM-XXXX
+export function formatSOCode(compCode = 'LBR', seq = 1, date = new Date()): string {
+  const year2 = date.getFullYear().toString().slice(-2);
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const seqStr = seq.toString().padStart(4, '0');
+  return `${compCode}-SO${year2}${month}-${seqStr}`;
+}
+
+// SO Status Metadata: Label, Badge Class, Description
+export function getSOStatusInfo(status: string) {
+  switch (status) {
+    case 'PENDING_CONTRACTOR':
+      return {
+        label: 'รอจัดหาช่าง',
+        color: 'amber',
+        badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
+        dotClass: 'bg-amber-500',
+      };
+    case 'SOURCING':
+      return {
+        label: 'กำลังดิวช่าง',
+        color: 'blue',
+        badgeClass: 'bg-blue-50 text-blue-700 border-blue-200',
+        dotClass: 'bg-blue-500',
+      };
+    case 'CONFIRMED':
+      return {
+        label: 'ยืนยันช่างแล้ว',
+        color: 'emerald',
+        badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        dotClass: 'bg-emerald-500',
+      };
+    case 'IN_PROGRESS':
+      return {
+        label: 'กำลังติดตั้ง',
+        color: 'purple',
+        badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
+        dotClass: 'bg-purple-500',
+      };
+    case 'ON_HOLD':
+      return {
+        label: 'พักงานรอหน้างาน',
+        color: 'orange',
+        badgeClass: 'bg-orange-50 text-orange-700 border-orange-200',
+        dotClass: 'bg-orange-500',
+      };
+    case 'DEFECT_FIXING':
+      return {
+        label: 'กำลังแก้ไขงาน',
+        color: 'rose',
+        badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
+        dotClass: 'bg-rose-500',
+      };
+    case 'COMPLETED':
+      return {
+        label: 'เสร็จสมบูรณ์',
+        color: 'slate',
+        badgeClass: 'bg-slate-100 text-slate-700 border-slate-300',
+        dotClass: 'bg-slate-500',
+      };
+    case 'CANCELLED':
+      return {
+        label: 'ยกเลิกงาน',
+        color: 'red',
+        badgeClass: 'bg-red-50 text-red-700 border-red-200',
+        dotClass: 'bg-red-500',
+      };
+    default:
+      return {
+        label: status,
+        color: 'slate',
+        badgeClass: 'bg-slate-50 text-slate-700 border-slate-200',
+        dotClass: 'bg-slate-400',
+      };
+  }
+}

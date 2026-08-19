@@ -10,7 +10,7 @@ datasource db {
 
 model Company {
   id          String         @id @default(cuid())
-  code        String         @unique // e.g. CP1, CP2
+  code        String         @unique // e.g. CP1, CP2, LBR, UTY
   nameTh      String         // ชื่อบริษัท (ไทย)
   nameEn      String?        // Company Name (EN)
   taxId       String         // เลขประจำตัวผู้เสียภาษี 13 หลัก
@@ -21,6 +21,7 @@ model Company {
   bankInfo    String?        // บัญชีธนาคารบริษัท
   jobs        Job[]
   quotations  SubQuotation[]
+  salesOrders SalesOrder[]
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 }
@@ -43,6 +44,7 @@ model Subcontractor {
   rateHistory     ItemRateHistory[]
   quotations      SubQuotation[]
   schedules       WorkSchedule[]
+  defects         DefectTicket[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 }
@@ -58,6 +60,7 @@ model Item {
   contractItems  SubContractItem[]
   rateHistory    ItemRateHistory[]
   quotationItems SubQuotationItem[]
+  soItems        SalesOrderItem[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 }
@@ -75,8 +78,123 @@ model ItemRateHistory {
   notes           String?
 }
 
+// ----------------------------------------------------
+// 1. SALES ORDER (SO) - หัวใจศูนย์กลางกระบวนการทำงาน
+// ----------------------------------------------------
+model SalesOrder {
+  id                 String           @id @default(cuid())
+  soNumber           String           @unique // e.g. SO260819-0001, LBR-SO-2608-001
+  companyId          String
+  company            Company          @relation(fields: [companyId], references: [id])
+  salesPerson        String?          // ชื่อเซลผู้รับผิดชอบ
+  customerName       String           // ชื่อลูกค้า / โครงการ
+  customerPhone      String?
+  siteLocation       String           // สถานที่ / โครงการที่จะไปติดตั้ง
+  googleMapsUrl      String?          // ลิงก์ Google Maps / พิกัด GPS
+  targetInstallDate  DateTime?        // วันที่นัดหมายติดตั้งเริ่มต้น
+  targetFinishDate   DateTime?        // วันที่คาดว่าจะเสร็จสิ้น
+  rescheduleReason   String?          // เหตุผลการเลื่อนวันล่าสุด
+  rescheduleHistory  String?          // JSON Array เก็บประวัติการเลื่อนวันทั้งหมด
+  status             String           @default("PENDING_CONTRACTOR") 
+  // PENDING_CONTRACTOR | SOURCING | CONFIRMED | IN_PROGRESS | ON_HOLD | DEFECT_FIXING | COMPLETED | CANCELLED
+  onHoldReason       String?          // เหตุผลที่พักงานชั่วคราว
+  totalAmount        Float            @default(0) // ยอดรวมที่ขายได้
+  cancelReason       String?          // สาเหตุที่ยกเลิกงาน
+  cancelSettlement   String?          // JSON รายละเอียดการเคลียร์เงินกรณียกเลิก
+  notes              String?
+  taggedStaff        String?          // JSON รายชื่อทีมงานที่แท็ก (เซล, PM, โฟร์แมน)
+  items              SalesOrderItem[]
+  jobs               Job[]
+  quotations         SubQuotation[]
+  phases             SiteVisitPhase[]
+  defects            DefectTicket[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+}
+
+model SalesOrderItem {
+  id           String     @id @default(cuid())
+  salesOrderId String
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  itemId       String?
+  item         Item?      @relation(fields: [itemId], references: [id])
+  itemCode     String     // รหัสรายการสินค้า/งานติดตั้ง
+  itemName     String     // รายละเอียดงาน
+  category     String?    // หมวดหมู่งาน
+  quantity     Float      // ปริมาณ
+  unit         String     // หน่วยนับ
+  unitRate     Float      @default(0) // ราคาต่อหน่วย
+  totalAmount  Float      @default(0) // ยอดรวม
+  notes        String?
+}
+
+// ----------------------------------------------------
+// 2. SITE VISIT PHASES (รอบการเข้าทำงานย่อย)
+// ----------------------------------------------------
+model SiteVisitPhase {
+  id           String      @id @default(cuid())
+  salesOrderId String
+  salesOrder   SalesOrder  @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  phaseNumber  Int         // รอบที่ 1, 2, 3...
+  title        String      // เช่น 'รอบ 1: ปูพื้นไม้', 'รอบ 2: ติดตั้งบัวและเก็บสี'
+  startDate    DateTime    // วันที่เริ่มรอบนี้
+  endDate      DateTime    // วันที่คาดว่าจะเสร็จรอบนี้
+  status       String      @default("PLANNED") // PLANNED | IN_PROGRESS | COMPLETED | ON_HOLD
+  onHoldReason String?     // เหตุผลหากพักงานในรอบนี้
+  notes        String?
+  taggedStaff  String?     // โฟร์แมน/คนคุมงานรอบนี้
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+// ----------------------------------------------------
+// 3. STAFF MEMBERS (ทีมงานสำหรับแท็ก & ส่งแจ้งเตือน)
+// ----------------------------------------------------
+model StaffMember {
+  id         String         @id @default(cuid())
+  name       String         // ชื่อ-นามสกุล
+  role       String         // SALES | PM | FOREMAN | COORDINATOR
+  phone      String?        // เบอร์โทรศัพท์
+  email      String?        // อีเมล
+  lineUserId String?        // Token / LINE User ID สำหรับแจ้งเตือน
+  status     String         @default("ACTIVE")
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+}
+
+// ----------------------------------------------------
+// 4. DEFECT TICKETS (ระบบงานแก้ไข / เก็บงานหลังส่งมอบ)
+// ----------------------------------------------------
+model DefectTicket {
+  id              String         @id @default(cuid())
+  salesOrderId    String?
+  salesOrder      SalesOrder?    @relation(fields: [salesOrderId], references: [id])
+  jobId           String?
+  job             Job?           @relation(fields: [jobId], references: [id])
+  subcontractorId String?
+  subcontractor   Subcontractor? @relation(fields: [subcontractorId], references: [id])
+  title           String         // หัวข้อจุดที่ต้องแก้ไข เช่น ไม้โก่งตัวบริเวณหน้าห้องน้ำ
+  description     String?        // รายละเอียด
+  photos          String?        // JSON Array รูปภาพก่อน/หลังแก้ไข
+  severity        String         @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+  status          String         @default("OPEN") // OPEN | IN_PROGRESS | FIXED | VERIFIED | CLOSED
+  actionType      String         @default("FIX_BY_ORIGINAL") 
+  // FIX_BY_ORIGINAL (ช่างเดิมแก้ฟรีในประกัน) | HIRE_NEW_DEDUCT (จ้างช่างอื่นแล้วหักเงินช่างเดิม) | EXTRA_CHARGE (งานเพิ่ม)
+  deductAmount    Float          @default(0) // ยอดหักจากเงินงวด 3 ของช่างเดิม
+  extraCost       Float          @default(0) // ยอดค่าใช้จ่ายที่เกิดขึ้นจริง
+  resolvedAt      DateTime?      // วันที่แก้ไขเสร็จสิ้น
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+// ----------------------------------------------------
+// 5. JOBS (งานติดตั้ง)
+// ----------------------------------------------------
 model Job {
   id            String         @id @default(cuid())
+  salesOrderId  String?
+  salesOrder    SalesOrder?    @relation(fields: [salesOrderId], references: [id])
   companyId     String
   company       Company        @relation(fields: [companyId], references: [id])
   jobCode       String         @unique // [COMP_CODE]-JOB-YYYYMM-XXXX
@@ -84,12 +202,14 @@ model Job {
   customerName  String?        // ชื่อลูกค้า / โครงการ
   customerPhone String?
   siteLocation  String?        // สถานที่ / เลขที่ห้อง
-  status        String         @default("IN_PROGRESS") // DRAFT | IN_PROGRESS | COMPLETED | CANCELLED
+  googleMapsUrl String?        // ลิงก์ Google Maps
+  status        String         @default("IN_PROGRESS") // DRAFT | IN_PROGRESS | ON_HOLD | DEFECT_FIXING | COMPLETED | CANCELLED
   startDate     DateTime?
   endDate       DateTime?
   notes         String?
   subContracts  SubContract[]
   schedules     WorkSchedule[]
+  defects       DefectTicket[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 }
@@ -102,10 +222,11 @@ model SubContract {
   subcontractor       Subcontractor     @relation(fields: [subcontractorId], references: [id])
   contractCode        String            @unique // [COMP_CODE]-SC-YYYYMM-XXXX
   contractDate        DateTime          @default(now())
-  totalContractAmount Float             @default(0) // ยอดสัญญารวม (Sum of all SubContractItems)
+  totalContractAmount Float             @default(0) // ยอดสัญญารวม
   extraAmount         Float             @default(0) // งานเพิ่ม
   deductAmount        Float             @default(0) // งานลด / ค่าปรับ
   status              String            @default("ACTIVE") // ACTIVE | COMPLETED | TERMINATED
+  paymentTerms        String?           // เช่น "งวด 1: 40% (เข้างาน), งวด 2: 40% (เสร็จงาน), งวด 3: 20% (ตรวจรับ)"
   notes               String?
   items               SubContractItem[]
   payments            SubPayment[]
@@ -134,6 +255,7 @@ model SubPayment {
   subContractId String
   subContract   SubContract @relation(fields: [subContractId], references: [id], onDelete: Cascade)
   installmentNo Int         // งวดที่ 1, 2, 3...
+  paymentStage  String?     // MOBILIZATION_40 | WORK_DONE_40 | ACCEPTANCE_20 | CUSTOM
   paymentDate   DateTime    @default(now())
   amount        Float       // ยอดเงินงวดนี้ (ก่อนหักภาษี)
   whtRate       Float       @default(3.0) // อัตราภาษีหัก ณ ที่จ่าย % (3%)
@@ -162,13 +284,14 @@ model WorkSchedule {
   taskCategory        String?       // หมวดงาน (เตรียมหน้างาน, งานหลัก, เก็บงาน, ตรวจรับ)
   startDate           DateTime      // วันที่เริ่มเข้าทำงาน
   endDate             DateTime      // วันที่คาดว่าจะเสร็จ
-  status              String        @default("PLANNED") // PLANNED | IN_PROGRESS | COMPLETED | DELAYED | CANCELLED
+  status              String        @default("PLANNED") // PLANNED | IN_PROGRESS | COMPLETED | ON_HOLD | DELAYED | CANCELLED
   progressPercent     Int           @default(0) // ความคืบหน้า 0 - 100%
   
+  taggedStaff         String?       // JSON รายชื่อทีมงานที่แท็กในวันนี้
   linkedInstallmentNo Int?          // ผูกกับงวดเงินที่ เช่น งวดที่ 1, งวดที่ 2
   targetAmount        Float?        // ยอดเงินที่คาดว่าจะเบิกจ่าย
   
-  delayReason         String?       // บันทึกสาเหตุหากงานล่าช้า
+  delayReason         String?       // บันทึกสาเหตุหากงานล่าช้า/พักงาน
   notes               String?       // หมายเหตุทั่วไป
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
@@ -176,6 +299,8 @@ model WorkSchedule {
 
 model SubQuotation {
   id              String             @id @default(cuid())
+  salesOrderId    String?
+  salesOrder      SalesOrder?        @relation(fields: [salesOrderId], references: [id])
   companyId       String
   company         Company            @relation(fields: [companyId], references: [id])
   subcontractorId String
@@ -189,6 +314,7 @@ model SubQuotation {
   whtAmount       Float              @default(0)
   grandTotal      Float              @default(0)
   status          String             @default("DRAFT") // DRAFT | ACCEPTED | CONVERTED | REJECTED
+  paymentTerms    String?            // เช่น 40% วันเริ่มงาน, 40% จบงาน, 20% ลูกค้าตรวจรับ
   convertedJobId  String?
   notes           String?
   items           SubQuotationItem[]

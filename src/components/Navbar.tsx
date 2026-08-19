@@ -7,6 +7,7 @@ import {
   Building2,
   HardHat,
   Briefcase,
+  Calendar,
   FileSpreadsheet,
   FileText,
   BarChart3,
@@ -27,11 +28,13 @@ export function Navbar() {
 
   const navLinks = [
     { href: '/', label: 'หน้าหลัก', icon: Layers },
-    { href: '/jobs', label: 'งานติดตั้ง & สัญญาช่าง', icon: Briefcase },
-    { href: '/subcontractors', label: 'จัดการช่าง (Subcontractors)', icon: HardHat },
-    { href: '/price-benchmark', label: 'เทียบราคาค่าแรง', icon: BarChart3 },
+    { href: '/sales-orders', label: 'คำสั่งขาย & จองคิว (SO)', icon: FileText, highlight: true },
+    { href: '/jobs', label: 'งานติดตั้ง & สัญญา', icon: Briefcase },
+    { href: '/schedule', label: 'ปฏิทินคิวงาน', icon: Calendar },
     { href: '/quotations', label: 'ใบเสนอราคาแทนช่าง', icon: FileText },
-    { href: '/import-excel', label: 'นำเข้า Excel', icon: FileSpreadsheet, highlight: true },
+    { href: '/subcontractors', label: 'จัดการช่าง', icon: HardHat },
+    { href: '/price-benchmark', label: 'เทียบราคาค่าแรง', icon: BarChart3 },
+    { href: '/import-excel', label: 'นำเข้า Excel', icon: FileSpreadsheet },
   ];
 
   const isActive = (href: string) => {

@@ -208,6 +208,50 @@ export function PaymentModal({ contract, jobTitle, onClose, onSuccess }: Payment
 
           {/* Form Fields */}
           <div className="space-y-4">
+            {/* 3-Tier Quick Preset Buttons */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-600 block">
+                ⚡ ใส่ยอดตามงวดมาตรฐาน 3 งวด (40% - 40% - 20%):
+              </label>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = Math.min(netContractAmount * 0.4, remainingBalance);
+                    setDisplayAmount(formatMoney(target));
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold border border-indigo-200 text-center transition-colors"
+                >
+                  <div>งวด 1 (40%)</div>
+                  <div className="text-[10px] opacity-80">{formatCurrency(netContractAmount * 0.4)}</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = Math.min(netContractAmount * 0.4, remainingBalance);
+                    setDisplayAmount(formatMoney(target));
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold border border-indigo-200 text-center transition-colors"
+                >
+                  <div>งวด 2 (40%)</div>
+                  <div className="text-[10px] opacity-80">{formatCurrency(netContractAmount * 0.4)}</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = Math.min(netContractAmount * 0.2, remainingBalance);
+                    setDisplayAmount(formatMoney(target));
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold border border-emerald-200 text-center transition-colors"
+                >
+                  <div>งวด 3 (20%)</div>
+                  <div className="text-[10px] opacity-80">{formatCurrency(netContractAmount * 0.2)}</div>
+                </button>
+              </div>
+            </div>
+
             {/* Amount Field with Guaranteed Real-time Commas */}
             <div>
               <div className="flex items-center justify-between mb-1.5">

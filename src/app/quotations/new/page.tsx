@@ -42,6 +42,7 @@ interface QuotationItemDraft {
 function NewQuotationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const soId = searchParams.get('soId');
   const preselectedSubId = searchParams.get('subcontractorId') || '';
   const preselectedItemCode = searchParams.get('itemCode') || '';
 
@@ -143,6 +144,36 @@ function NewQuotationContent() {
 
     fetchData();
   }, []);
+
+  // Fetch SO details when opened from an existing Sales Order
+  useEffect(() => {
+    if (soId) {
+      fetch(`/api/sales-orders/${soId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.soNumber) {
+            setSoNumber(data.soNumber);
+            if (data.companyId) setCompanyId(data.companyId);
+            setProjectName(`โครงการ ${data.customerName} (${data.siteLocation})`);
+            if (Array.isArray(data.items) && data.items.length > 0) {
+              setItems(
+                data.items.map((it: any) => ({
+                  itemId: it.itemId || '',
+                  itemCode: it.itemCode || 'ITEM-GEN',
+                  itemName: it.itemName || 'งานติดตั้ง',
+                  quantity: it.quantity || 1,
+                  unit: it.unit || 'ตร.ม.',
+                  unitRate: it.unitRate || 0,
+                  totalAmount: it.totalAmount || 0,
+                  notes: it.notes || '',
+                }))
+              );
+            }
+          }
+        })
+        .catch((err) => console.error('Error prefetching SO for quotation:', err));
+    }
+  }, [soId]);
 
   // Update selected sub info
   const handleSubChange = (newSubId: string) => {
@@ -792,6 +823,54 @@ function NewQuotationContent() {
               <div className="flex justify-between text-sm font-extrabold text-slate-900 pt-1.5 border-t border-slate-200">
                 <span className="text-emerald-700">ยอดเงินสุทธิ (Grand Total):</span>
                 <span className="text-emerald-700 font-mono text-base">{formatCurrency(grandTotal)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 3-Tier Standard Payment Milestones (40% - 40% - 20%) */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-50/80 to-blue-50/80 border border-indigo-200/90 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-extrabold text-indigo-950 text-xs flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-indigo-600" />
+                <span>กำหนดการจ่ายเงิน 3 งวดมาตรฐาน (40% - 40% - 20%)</span>
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-200/60 text-indigo-800">
+                คำนวณอัตโนมัติ
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+              <div className="p-3 bg-white rounded-xl border border-indigo-100/80 shadow-2xs space-y-1">
+                <div className="flex justify-between font-bold text-slate-800">
+                  <span>งวดที่ 1 (40%)</span>
+                  <span className="text-[11px] text-indigo-600">เข้าหน้างาน</span>
+                </div>
+                <div className="text-[11px] text-slate-500">ณ วันที่ช่างเข้าหน้างาน</div>
+                <div className="font-mono font-bold text-indigo-700 text-sm">
+                  {formatCurrency(subtotal * 0.4)}
+                </div>
+              </div>
+
+              <div className="p-3 bg-white rounded-xl border border-indigo-100/80 shadow-2xs space-y-1">
+                <div className="flex justify-between font-bold text-slate-800">
+                  <span>งวดที่ 2 (40%)</span>
+                  <span className="text-[11px] text-indigo-600">งานเสร็จ</span>
+                </div>
+                <div className="text-[11px] text-slate-500">เมื่อติดตั้งงานแล้วเสร็จ</div>
+                <div className="font-mono font-bold text-indigo-700 text-sm">
+                  {formatCurrency(subtotal * 0.4)}
+                </div>
+              </div>
+
+              <div className="p-3 bg-white rounded-xl border border-emerald-100 shadow-2xs space-y-1 bg-emerald-50/30">
+                <div className="flex justify-between font-bold text-slate-800">
+                  <span>งวดที่ 3 (20%)</span>
+                  <span className="text-[11px] text-emerald-600">ตรวจรับ</span>
+                </div>
+                <div className="text-[11px] text-slate-500">ลูกค้าตรวจรับงานเรียบร้อย</div>
+                <div className="font-mono font-bold text-emerald-700 text-sm">
+                  {formatCurrency(subtotal * 0.2)}
+                </div>
               </div>
             </div>
           </div>
