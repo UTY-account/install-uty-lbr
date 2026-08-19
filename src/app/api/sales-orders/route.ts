@@ -91,12 +91,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'ไม่พบบริษัทที่ระบุ' }, { status: 404 });
     }
 
-    const date = new Date();
-    const count = await prisma.salesOrder.count({
-      where: { companyId },
-    });
-
-    const soNumber = formatSOCode(company.code, count + 1, date);
+    let finalSONumber = '';
+    if (body.soNumber && body.soNumber.trim()) {
+      finalSONumber = body.soNumber.trim();
+      const existing = await prisma.salesOrder.findUnique({
+        where: { soNumber: finalSONumber },
+      });
+      if (existing) {
+        return NextResponse.json(
+          { error: `เลขที่ SO "${finalSONumber}" มีอยู่ในระบบแล้ว กรุณาตรวจสอบหรือใช้เลขอื่น` },
+          { status: 400 }
+        );
+      }
+    } else {
+      const date = new Date();
+      const count = await prisma.salesOrder.count();
+      finalSONumber = formatSOCode(company.code, count + 1, date);
+    }
 
     // Calculate items
     let totalAmount = 0;
@@ -109,9 +120,9 @@ export async function POST(req: NextRequest) {
         itemId: it.itemId || null,
         itemCode: it.itemCode?.trim() || 'ITEM-GEN',
         itemName: it.itemName?.trim() || 'งานติดตั้ง',
-        category: it.category?.trim() || 'งานทั่วไป',
+        category: it.category?.trim() || null,
         quantity: qty,
-        unit: it.unit?.trim() || 'หน่วย',
+        unit: it.unit?.trim() || 'ตร.ม.',
         unitRate: rate,
         totalAmount: amount,
         notes: it.notes?.trim() || null,
@@ -124,7 +135,7 @@ export async function POST(req: NextRequest) {
     // Create Sales Order
     const salesOrder = await prisma.salesOrder.create({
       data: {
-        soNumber,
+        soNumber: finalSONumber,
         companyId,
         salesPerson: salesPerson?.trim() || null,
         customerName: customerName.trim(),

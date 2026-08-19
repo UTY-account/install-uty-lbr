@@ -29,6 +29,7 @@ export default function NewSalesOrderPage() {
   const { selectedCompanyCode, companies, selectedCompany } = useCompany();
 
   const [companyId, setCompanyId] = useState('');
+  const [soNumber, setSoNumber] = useState('');
   const [salesPerson, setSalesPerson] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -37,6 +38,15 @@ export default function NewSalesOrderPage() {
   const [targetInstallDate, setTargetInstallDate] = useState(formatISODate(new Date()));
   const [targetFinishDate, setTargetFinishDate] = useState(formatISODate(new Date()));
   const [notes, setNotes] = useState('');
+
+  // Auto-suggest default SO number based on today's date: YYMMDD-0001
+  useEffect(() => {
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(-2);
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    setSoNumber(`${yy}${mm}${dd}-0001`);
+  }, []);
 
   // Staff Tagging
   const [availableStaff, setAvailableStaff] = useState<any[]>([]);
@@ -148,6 +158,10 @@ export default function NewSalesOrderPage() {
     e.preventDefault();
     setErrorMsg('');
 
+    if (!soNumber.trim()) {
+      setErrorMsg('กรุณากรอกเลขที่ SO เช่น 260815-0001 (YYMMDD-XXXX)');
+      return;
+    }
     if (!companyId) {
       setErrorMsg('กรุณาเลือกบริษัทผู้ขาย');
       return;
@@ -163,6 +177,7 @@ export default function NewSalesOrderPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          soNumber: soNumber.trim(),
           companyId,
           salesPerson,
           customerName,
@@ -227,14 +242,36 @@ export default function NewSalesOrderPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Section 1: Company & Sales Person */}
+        {/* Section 1: SO Number, Company & Sales Person */}
         <div className="p-6 sm:p-7 rounded-3xl bg-white border border-slate-200/90 shadow-xs space-y-4">
           <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
             <Building2 className="w-4 h-4 text-blue-600" />
-            <span>1. บริษัทผู้ขาย และเซลผู้รับผิดชอบ</span>
+            <span>1. เลขที่ SO, บริษัทผู้ขาย และเซลผู้รับผิดชอบ</span>
           </h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-bold text-slate-700">
+                  เลขที่ SO (Sales Order No.) *
+                </label>
+                <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
+                  YYMMDD-XXXX
+                </span>
+              </div>
+              <input
+                type="text"
+                value={soNumber}
+                onChange={(e) => setSoNumber(e.target.value)}
+                placeholder="เช่น 260815-0001"
+                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 font-mono font-extrabold text-indigo-800 text-xs focus:ring-2 focus:ring-indigo-500 shadow-2xs"
+                required
+              />
+              <span className="text-[10px] text-slate-400 mt-1 block">
+                ตัวอย่าง: 26 (ปี) 08 (เดือน) 15 (วัน) - 0001 (ลำดับ)
+              </span>
+            </div>
+
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">
                 บริษัทผู้ขาย (Issuer) *

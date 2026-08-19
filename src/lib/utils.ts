@@ -191,12 +191,13 @@ export function formatSubContractCodeWithSO(
   return `${compCode}-SC-${year}${month}-${seqStr}`;
 }
 
-// Generate SO Code: e.g. SO2608-0001 or [COMP_CODE]-SO-YYMM-XXXX
-export function formatSOCode(compCode = 'LBR', seq = 1, date = new Date()): string {
+// Generate SO Code: e.g. 260815-0001, 260819-0001 (YYMMDD-XXXX)
+export function formatSOCode(compCode?: string, seq = 1, date = new Date()): string {
   const year2 = date.getFullYear().toString().slice(-2);
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
   const seqStr = seq.toString().padStart(4, '0');
-  return `${compCode}-SO${year2}${month}-${seqStr}`;
+  return `${year2}${month}${day}-${seqStr}`;
 }
 
 // SO Status Metadata: Label, Badge Class, Description
