@@ -217,10 +217,79 @@ export default function SalesOrderDetailPage() {
     }
   };
 
-  // Generate LINE message
+  const [lineGroups, setLineGroups] = useState<any[]>([]);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  const [hasBotToken, setHasBotToken] = useState(false);
+  const [isPushingLine, setIsPushingLine] = useState(false);
+  const [pushStatusMsg, setPushStatusMsg] = useState<string | null>(null);
+
+  // Generate LINE message and load groups
   const handleOpenLineModal = async () => {
     if (!salesOrder) return;
+    setPushStatusMsg(null);
     try {
+      const contractorName = salesOrder.quotations?.[0]?.subcontractor?.name || salesOrder.jobs?.[0]?.subContracts?.[0]?.subcontractor?.name || '';
+      const contractorPhone = salesOrder.quotations?.[0]?.subcontractor?.phone || salesOrder.jobs?.[0]?.subContracts?.[0]?.subcontractor?.phone || '';
+      const itemsSummary = salesOrder.items?.map((it: any) => `${it.itemName} (${it.quantity} ${it.unit})`).join(', ');
+
+      const [notifyRes, groupsRes, settingsRes] = await Promise.all([
+        fetch('/api/notify/line', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            companyName: salesOrder.company?.nameTh || 'บริษัท ลัมเบอเรอร์ จำกัด',
+            soNumber: salesOrder.soNumber,
+            customerName: salesOrder.customerName,
+            customerPhone: salesOrder.customerPhone,
+            siteLocation: salesOrder.siteLocation,
+            googleMapsUrl: salesOrder.googleMapsUrl,
+            targetInstallDate: salesOrder.targetInstallDate,
+            targetFinishDate: salesOrder.targetFinishDate,
+            taggedStaff: salesOrder.taggedStaff,
+            contractorName,
+            contractorPhone,
+            itemsSummary,
+          }),
+        }),
+        fetch('/api/line-groups'),
+        fetch('/api/settings/line'),
+      ]);
+
+      if (notifyRes.ok) {
+        const data = await notifyRes.json();
+        setLineShareUrl(data.lineShareUrl);
+        setLineMessageText(data.message);
+      }
+
+      if (settingsRes.ok) {
+        const sData = await settingsRes.json();
+        setHasBotToken(sData.isConnected);
+      }
+
+      if (groupsRes.ok) {
+        const gData = await groupsRes.json();
+        setLineGroups(gData);
+        // Pre-select default groups
+        const defaultIds = gData.filter((g: any) => g.isDefault).map((g: any) => g.id);
+        setSelectedGroupIds(defaultIds.length > 0 ? defaultIds : gData.map((g: any) => g.id));
+      }
+
+      setLineModalOpen(true);
+    } catch (err) {
+      console.error('LINE notification error:', err);
+    }
+  };
+
+  // Auto Push to Selected Groups
+  const handleAutoPushLine = async () => {
+    if (selectedGroupIds.length === 0) {
+      alert('กรุณาเลือกกลุ่มไลน์อย่างน้อย 1 กลุ่ม');
+      return;
+    }
+    try {
+      setIsPushingLine(true);
+      setPushStatusMsg(null);
+
       const contractorName = salesOrder.quotations?.[0]?.subcontractor?.name || salesOrder.jobs?.[0]?.subContracts?.[0]?.subcontractor?.name || '';
       const contractorPhone = salesOrder.quotations?.[0]?.subcontractor?.phone || salesOrder.jobs?.[0]?.subContracts?.[0]?.subcontractor?.phone || '';
       const itemsSummary = salesOrder.items?.map((it: any) => `${it.itemName} (${it.quantity} ${it.unit})`).join(', ');
@@ -241,17 +310,21 @@ export default function SalesOrderDetailPage() {
           contractorName,
           contractorPhone,
           itemsSummary,
+          selectedGroupIds,
         }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        setLineShareUrl(data.lineShareUrl);
-        setLineMessageText(data.message);
-        setLineModalOpen(true);
+      const data = await res.json();
+      if (res.ok && data.autoPushSuccessCount > 0) {
+        setPushStatusMsg(`✅ ส่งข้อความเข้า ${data.autoPushSuccessCount} กลุ่มเรียบร้อยแล้ว!`);
+      } else {
+        const errorDetail = data.pushResults?.find((r: any) => !r.success)?.error || data.error || 'กรุณาตรวจสอบ Channel Access Token และ Group ID';
+        setPushStatusMsg(`⚠️ ส่งไม่สำเร็จ: ${errorDetail}`);
       }
-    } catch (err) {
-      console.error('LINE notification error:', err);
+    } catch (err: any) {
+      setPushStatusMsg(`❌ เกิดข้อผิดพลาด: ${err.message}`);
+    } finally {
+      setIsPushingLine(false);
     }
   };
 
@@ -980,46 +1053,152 @@ export default function SalesOrderDetailPage() {
         </div>
       )}
 
-      {/* LINE Share Popup */}
+      {/* LINE Broadcast Modal */}
       {lineModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                <Send className="w-4 h-4 text-emerald-600" />
-                <span>แชร์ข้อมูลงานเข้า LINE</span>
-              </h3>
-              <button onClick={() => setLineModalOpen(false)} className="text-slate-400">
+              <div className="flex items-center gap-2">
+                <Send className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-base font-extrabold text-slate-900">
+                  ส่งแจ้งเตือนเข้า LINE กลุ่ม
+                </h3>
+              </div>
+              <button onClick={() => setLineModalOpen(false)} className="text-slate-400 hover:text-slate-600">
                 ✕
               </button>
             </div>
 
-            <textarea
-              value={lineMessageText}
-              readOnly
-              rows={9}
-              className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-800"
-            />
+            {/* Target Groups Selector */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-extrabold text-slate-800 flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>เลือกกลุ่มไลน์ที่ต้องการส่ง ({selectedGroupIds.length}/{lineGroups.length} กลุ่ม):</span>
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedGroupIds.length === lineGroups.length) setSelectedGroupIds([]);
+                      else setSelectedGroupIds(lineGroups.map((g) => g.id));
+                    }}
+                    className="text-[11px] font-bold text-blue-600 hover:underline"
+                  >
+                    {selectedGroupIds.length === lineGroups.length ? 'ยกเลิกทั้งหมด' : 'เลือกทุกกลุ่ม'}
+                  </button>
+                  <span className="text-slate-300">|</span>
+                  <Link href="/settings/line" className="text-[11px] font-bold text-emerald-600 hover:underline">
+                    ⚙️ จัดการกลุ่ม
+                  </Link>
+                </div>
+              </div>
 
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(lineMessageText);
-                  alert('คัดลอกข้อความแล้ว!');
-                }}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold"
-              >
-                📋 คัดลอกข้อความ
-              </button>
-              <a
-                href={lineShareUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md"
-              >
-                <span>🟢 เปิดแชร์ใน LINE</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
+                {lineGroups.map((g) => {
+                  const isChecked = selectedGroupIds.includes(g.id);
+                  return (
+                    <label
+                      key={g.id}
+                      className={`flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition-all ${
+                        isChecked
+                          ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950 font-bold'
+                          : 'bg-white border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedGroupIds([...selectedGroupIds, g.id]);
+                          else setSelectedGroupIds(selectedGroupIds.filter((id) => id !== g.id));
+                        }}
+                        className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <span className="truncate">{g.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Message Preview */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-slate-500 block">
+                ตัวอย่างข้อความที่จะส่ง:
+              </label>
+              <textarea
+                value={lineMessageText}
+                readOnly
+                rows={6}
+                className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-800"
+              />
+            </div>
+
+            {/* Push Status Feedback */}
+            {pushStatusMsg && (
+              <div className="p-3 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-900">
+                {pushStatusMsg}
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="space-y-2 pt-1">
+              {hasBotToken ? (
+                <button
+                  onClick={handleAutoPushLine}
+                  disabled={isPushingLine || selectedGroupIds.length === 0}
+                  className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.01]"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>
+                    {isPushingLine
+                      ? 'กำลังยิงข้อความเข้า LINE...'
+                      : `⚡ ส่งข้อความเข้า ${selectedGroupIds.length} กลุ่มที่เลือกอัตโนมัติ`}
+                  </span>
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-800 flex items-center justify-between">
+                    <span>💡 ยังไม่ได้เชื่อมต่อ LINE Bot Token (สามารถส่งผ่านแอป LINE ด้านล่างนี้)</span>
+                    <Link href="/settings/line" className="font-bold text-amber-900 underline">
+                      ตั้งค่า Bot
+                    </Link>
+                  </div>
+                  <a
+                    href={lineShareUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md"
+                  >
+                    <span>🟢 เปิดแชร์ใน LINE (เลือกหลายกลุ่มได้)</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center text-[11px] pt-1 text-slate-500">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(lineMessageText);
+                    alert('คัดลอกข้อความแล้ว!');
+                  }}
+                  className="font-bold hover:text-slate-800 underline"
+                >
+                  📋 คัดลอกข้อความ
+                </button>
+                {hasBotToken && (
+                  <a
+                    href={lineShareUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-slate-500 hover:text-emerald-700 underline"
+                  >
+                    เปิดแชร์ผ่านแอป LINE แทน
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Sparkles,
+  Send,
 } from 'lucide-react';
 import { useCompany } from './CompanyContext';
 
@@ -33,6 +34,7 @@ export function Navbar() {
     { href: '/schedule', label: 'ปฏิทินคิวงาน', icon: Calendar },
     { href: '/quotations', label: 'ใบเสนอราคาแทนช่าง', icon: FileText },
     { href: '/subcontractors', label: 'จัดการช่าง', icon: HardHat },
+    { href: '/settings/line', label: 'กลุ่ม LINE', icon: Send },
     { href: '/price-benchmark', label: 'เทียบราคาค่าแรง', icon: BarChart3 },
     { href: '/import-excel', label: 'นำเข้า Excel', icon: FileSpreadsheet },
   ];
