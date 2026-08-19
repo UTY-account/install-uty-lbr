@@ -358,26 +358,51 @@ export default function LineSettingsPage() {
       </div>
 
       {/* Guide Box on How to get Group ID */}
-      <div className="p-6 rounded-3xl bg-indigo-50/70 border border-indigo-200/90 text-xs text-indigo-950 space-y-3">
-        <h3 className="font-extrabold text-sm flex items-center gap-2 text-indigo-900">
-          <HelpCircle className="w-4 h-4 text-indigo-700" />
-          <span>วิธีหา Group ID ของกลุ่มไลน์ (LINE Group ID)</span>
-        </h3>
-        <div className="space-y-1.5 text-indigo-900/90 leading-relaxed">
-          <p>
-            1. <strong>เชิญ LINE OA (บอท)</strong> ของบริษัทเข้าไปในกลุ่มไลน์ที่ต้องการ
-          </p>
-          <p>
-            2. <strong>Group ID</strong> เป็นรหัสเฉพาะของกลุ่มไลน์ที่ขึ้นต้นด้วยตัวอักษร{' '}
-            <code className="bg-white px-1.5 py-0.5 rounded border border-indigo-200 font-mono font-bold text-indigo-800">
-              C...
-            </code>{' '}
-            (ความยาว 33 ตัวอักษร)
-          </p>
-          <p>
-            3. นำ Group ID นั้นมากรอกลงในช่อง <strong>"LINE Group ID"</strong> ด้านบนนี้
-            แล้วเมื่อกดยิงแจ้งเตือนจากหน้า SO ระบบจะยิงตรงเข้ากลุ่มนั้นทันทีครับ
-          </p>
+      <div className="p-6 rounded-3xl bg-indigo-50/70 border border-indigo-200/90 text-xs text-indigo-950 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-extrabold text-sm flex items-center gap-2 text-indigo-900">
+            <Sparkles className="w-4 h-4 text-indigo-600" />
+            <span>วิธีเอารหัส LINE Group ID (ขึ้นต้นด้วยตัว C เช่น C1234567890abcdef...)</span>
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Method A: Auto webhook */}
+          <div className="p-4 rounded-2xl bg-white border border-indigo-200/80 shadow-2xs space-y-2">
+            <div className="font-extrabold text-indigo-900 text-xs flex items-center gap-1.5">
+              <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">1</span>
+              <span>วิธีที่ 1: ดึงรหัสและลงทะเบียนกลุ่มอัตโนมัติ (แนะนำ ✨)</span>
+            </div>
+            <p className="text-slate-600 leading-relaxed text-[11px]">
+              1. ไปที่ <strong>LINE Developers Console</strong> $\to$ เลือก Messaging API $\to$ เมนู <strong>Webhook settings</strong>
+            </p>
+            <div className="p-2 rounded-xl bg-slate-900 text-slate-100 font-mono text-[11px] break-all select-all">
+              https://install-uty-lbr.utthayan.workers.dev/api/webhook/line
+            </div>
+            <p className="text-slate-600 text-[11px]">
+              2. กดบันทึก และเปิดสวิตช์ <strong>Use webhook: ON</strong>
+            </p>
+            <p className="text-slate-600 text-[11px]">
+              3. ดึง LINE OA บอทเข้ากลุ่มไลน์ หรือพิมพ์คำว่า <code className="bg-slate-100 px-1 rounded font-bold text-slate-800">id</code> ในกลุ่มไลน์ บอทจะตอบรหัสกลุ่ม และ<strong>เพิ่มกลุ่มเข้าระบบเว็บให้อัตโนมัติทันที</strong> โดยไม่ต้องพิมพ์เอง!
+            </p>
+          </div>
+
+          {/* Method B: Manual lookup */}
+          <div className="p-4 rounded-2xl bg-white border border-indigo-200/80 shadow-2xs space-y-2">
+            <div className="font-extrabold text-indigo-900 text-xs flex items-center gap-1.5">
+              <span className="w-5 h-5 rounded-full bg-slate-700 text-white flex items-center justify-center text-[10px]">2</span>
+              <span>วิธีที่ 2: ใช้บอทแสดง ID หรือดึงจาก Webhook Log</span>
+            </div>
+            <p className="text-slate-600 leading-relaxed text-[11px]">
+              1. เชิญบอทเข้ากลุ่มไลน์
+            </p>
+            <p className="text-slate-600 leading-relaxed text-[11px]">
+              2. ดูใน Log หรือให้ผู้ดูแลระบบคัดลอกรหัส <code className="bg-slate-100 px-1 rounded font-bold text-slate-800">groupId</code> (ขึ้นต้นด้วย C เช่น <span className="font-mono text-slate-700">C0123456789abcdef...</span>)
+            </p>
+            <p className="text-slate-600 text-[11px]">
+              3. กดปุ่ม <strong>"+ เพิ่มกลุ่มไลน์ใหม่"</strong> ด้านบน แล้ววางรหัส Group ID ลงไปได้เลยครับ
+            </p>
+          </div>
         </div>
       </div>
 
