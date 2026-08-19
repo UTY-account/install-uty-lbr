@@ -40,6 +40,7 @@ export default function SalesOrderDetailPage() {
 
   const [salesOrder, setSalesOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Modals
   const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
@@ -73,15 +74,20 @@ export default function SalesOrderDetailPage() {
   const fetchSODetail = async () => {
     try {
       setLoading(true);
+      setErrorMsg(null);
       const res = await fetch(`/api/sales-orders/${id}`);
       if (res.ok) {
         const data = await res.json();
         setSalesOrder(data);
         setNewStartDate(formatISODate(data.targetInstallDate));
         setNewEndDate(formatISODate(data.targetFinishDate));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setErrorMsg(err.error || 'ไม่พบข้อมูลคำสั่งขายนี้');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching SO detail:', err);
+      setErrorMsg(err.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
     } finally {
       setLoading(false);
     }
@@ -261,7 +267,7 @@ export default function SalesOrderDetailPage() {
   if (!salesOrder) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-16 text-center space-y-3">
-        <h2 className="text-base font-bold text-slate-900">ไม่พบข้อมูลคำสั่งขายนี้</h2>
+        <h2 className="text-base font-bold text-slate-900">{errorMsg || 'ไม่พบข้อมูลคำสั่งขายนี้'}</h2>
         <Link href="/sales-orders" className="text-xs font-bold text-blue-600 hover:underline">
           กลับไปหน้ารายการ SO
         </Link>

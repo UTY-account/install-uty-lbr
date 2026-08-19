@@ -9,8 +9,13 @@ export async function GET(
   try {
     const { id } = params;
 
-    const salesOrder = await prisma.salesOrder.findUnique({
-      where: { id },
+    const salesOrder = await prisma.salesOrder.findFirst({
+      where: {
+        OR: [
+          { id },
+          { soNumber: id },
+        ],
+      },
       include: {
         company: true,
         items: {
@@ -73,8 +78,13 @@ export async function PATCH(
     const { id } = params;
     const body = await req.json();
 
-    const existing = await prisma.salesOrder.findUnique({
-      where: { id },
+    const existing = await prisma.salesOrder.findFirst({
+      where: {
+        OR: [
+          { id },
+          { soNumber: id },
+        ],
+      },
       include: { items: true },
     });
 
@@ -176,7 +186,7 @@ export async function PATCH(
     }
 
     const updated = await prisma.salesOrder.update({
-      where: { id },
+      where: { id: existing.id },
       data: updateData,
       include: {
         company: true,
@@ -199,8 +209,13 @@ export async function DELETE(
   try {
     const { id } = params;
 
-    const existing = await prisma.salesOrder.findUnique({
-      where: { id },
+    const existing = await prisma.salesOrder.findFirst({
+      where: {
+        OR: [
+          { id },
+          { soNumber: id },
+        ],
+      },
       include: { jobs: true, quotations: true },
     });
 
@@ -216,7 +231,7 @@ export async function DELETE(
     }
 
     await prisma.salesOrder.delete({
-      where: { id },
+      where: { id: existing.id },
     });
 
     return NextResponse.json({ success: true, message: 'ลบคำสั่งขายเรียบร้อยแล้ว' });
