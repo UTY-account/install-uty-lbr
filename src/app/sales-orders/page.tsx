@@ -81,6 +81,7 @@ export default function SalesOrdersPage() {
       onHold: salesOrders.filter((s) => s.status === 'ON_HOLD').length,
       defect: salesOrders.filter((s) => s.status === 'DEFECT_FIXING').length,
       completed: salesOrders.filter((s) => s.status === 'COMPLETED').length,
+      cancelled: salesOrders.filter((s) => s.status === 'CANCELLED').length,
     };
   }, [salesOrders]);
 
@@ -251,10 +252,10 @@ export default function SalesOrdersPage() {
       </div>
 
       {/* KPI Stats Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
         <button
           onClick={() => setStatusFilter('ALL')}
-          className={`p-4 rounded-2xl border text-left transition-all ${
+          className={`p-3.5 rounded-2xl border text-left transition-all ${
             statusFilter === 'ALL'
               ? 'bg-slate-900 text-white border-slate-900 shadow-md'
               : 'bg-white text-slate-700 border-slate-200/80 hover:bg-slate-50'
@@ -266,7 +267,7 @@ export default function SalesOrdersPage() {
 
         <button
           onClick={() => setStatusFilter('PENDING_CONTRACTOR')}
-          className={`p-4 rounded-2xl border text-left transition-all ${
+          className={`p-3.5 rounded-2xl border text-left transition-all ${
             statusFilter === 'PENDING_CONTRACTOR'
               ? 'bg-amber-600 text-white border-amber-600 shadow-md'
               : 'bg-amber-50/60 text-amber-900 border-amber-200/70 hover:bg-amber-100/50'
@@ -278,7 +279,7 @@ export default function SalesOrdersPage() {
 
         <button
           onClick={() => setStatusFilter('SOURCING')}
-          className={`p-4 rounded-2xl border text-left transition-all ${
+          className={`p-3.5 rounded-2xl border text-left transition-all ${
             statusFilter === 'SOURCING'
               ? 'bg-blue-600 text-white border-blue-600 shadow-md'
               : 'bg-blue-50/60 text-blue-900 border-blue-200/70 hover:bg-blue-100/50'
@@ -290,7 +291,7 @@ export default function SalesOrdersPage() {
 
         <button
           onClick={() => setStatusFilter('CONFIRMED')}
-          className={`p-4 rounded-2xl border text-left transition-all ${
+          className={`p-3.5 rounded-2xl border text-left transition-all ${
             statusFilter === 'CONFIRMED'
               ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
               : 'bg-emerald-50/60 text-emerald-900 border-emerald-200/70 hover:bg-emerald-100/50'
@@ -302,7 +303,7 @@ export default function SalesOrdersPage() {
 
         <button
           onClick={() => setStatusFilter('IN_PROGRESS')}
-          className={`p-4 rounded-2xl border text-left transition-all ${
+          className={`p-3.5 rounded-2xl border text-left transition-all ${
             statusFilter === 'IN_PROGRESS'
               ? 'bg-purple-600 text-white border-purple-600 shadow-md'
               : 'bg-purple-50/60 text-purple-900 border-purple-200/70 hover:bg-purple-100/50'
@@ -314,7 +315,7 @@ export default function SalesOrdersPage() {
 
         <button
           onClick={() => setStatusFilter('ON_HOLD')}
-          className={`p-4 rounded-2xl border text-left transition-all ${
+          className={`p-3.5 rounded-2xl border text-left transition-all ${
             statusFilter === 'ON_HOLD'
               ? 'bg-orange-600 text-white border-orange-600 shadow-md'
               : 'bg-orange-50/60 text-orange-900 border-orange-200/70 hover:bg-orange-100/50'
@@ -326,7 +327,7 @@ export default function SalesOrdersPage() {
 
         <button
           onClick={() => setStatusFilter('DEFECT_FIXING')}
-          className={`p-4 rounded-2xl border text-left transition-all ${
+          className={`p-3.5 rounded-2xl border text-left transition-all ${
             statusFilter === 'DEFECT_FIXING'
               ? 'bg-rose-600 text-white border-rose-600 shadow-md'
               : 'bg-rose-50/60 text-rose-900 border-rose-200/70 hover:bg-rose-100/50'
@@ -334,6 +335,18 @@ export default function SalesOrdersPage() {
         >
           <div className="text-[11px] font-bold text-rose-700">งานแก้ไข</div>
           <div className="text-xl font-extrabold text-rose-900 mt-1">{stats.defect}</div>
+        </button>
+
+        <button
+          onClick={() => setStatusFilter('CANCELLED')}
+          className={`p-3.5 rounded-2xl border text-left transition-all ${
+            statusFilter === 'CANCELLED'
+              ? 'bg-red-700 text-white border-red-700 shadow-md'
+              : 'bg-red-50/60 text-red-900 border-red-200/70 hover:bg-red-100/50'
+          }`}
+        >
+          <div className="text-[11px] font-bold text-red-700">ยกเลิกงาน</div>
+          <div className="text-xl font-extrabold text-red-900 mt-1">{stats.cancelled}</div>
         </button>
       </div>
 
@@ -550,6 +563,11 @@ export default function SalesOrdersPage() {
                     {so.onHoldReason && (
                       <div className="p-2 rounded-xl bg-orange-50 text-orange-800 border border-orange-200 text-[11px] font-medium">
                         ⏸️ <strong>พักงาน:</strong> {so.onHoldReason}
+                      </div>
+                    )}
+                    {so.status === 'CANCELLED' && (
+                      <div className="p-2 rounded-xl bg-rose-50 text-rose-800 border border-rose-200 text-[11px] font-medium">
+                        🚫 <strong>ยกเลิกงาน:</strong> {so.cancelReason || 'ลูกค้ายกเลิก'}
                       </div>
                     )}
                     <div className="flex flex-wrap items-center gap-1.5 pt-1">
