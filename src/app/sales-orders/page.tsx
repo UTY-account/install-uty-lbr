@@ -31,7 +31,7 @@ import { formatCurrency, formatDate, getSOStatusInfo } from '@/lib/utils';
 
 export default function SalesOrdersPage() {
   const { selectedCompanyCode, selectedCompany, isConsolidated, companies } = useCompany();
-  const [salesOrders, setSalesOrders] = useState<any[]>([]);
+  const [allSalesOrders, setAllSalesOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -47,17 +47,10 @@ export default function SalesOrdersPage() {
       if (!isConsolidated && selectedCompany?.id) {
         params.set('companyId', selectedCompany.id);
       }
-      if (statusFilter !== 'ALL') {
-        params.set('status', statusFilter);
-      }
-      if (search.trim()) {
-        params.set('search', search.trim());
-      }
-
       const res = await fetch(`/api/sales-orders?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        setSalesOrders(data);
+        setAllSalesOrders(data);
       }
     } catch (error) {
       console.error('Failed to load sales orders:', error);
@@ -68,22 +61,45 @@ export default function SalesOrdersPage() {
 
   useEffect(() => {
     fetchSalesOrders();
-  }, [selectedCompanyCode, statusFilter, search]);
+  }, [selectedCompanyCode]);
 
-  // Counts for pipeline tabs
+  // Global counts for pipeline tabs (NEVER shrink when clicking a filter tab)
   const stats = useMemo(() => {
     return {
-      all: salesOrders.length,
-      pending: salesOrders.filter((s) => s.status === 'PENDING_CONTRACTOR').length,
-      sourcing: salesOrders.filter((s) => s.status === 'SOURCING').length,
-      confirmed: salesOrders.filter((s) => s.status === 'CONFIRMED').length,
-      inProgress: salesOrders.filter((s) => s.status === 'IN_PROGRESS').length,
-      onHold: salesOrders.filter((s) => s.status === 'ON_HOLD').length,
-      defect: salesOrders.filter((s) => s.status === 'DEFECT_FIXING').length,
-      completed: salesOrders.filter((s) => s.status === 'COMPLETED').length,
-      cancelled: salesOrders.filter((s) => s.status === 'CANCELLED').length,
+      all: allSalesOrders.length,
+      pending: allSalesOrders.filter((s) => s.status === 'PENDING_CONTRACTOR').length,
+      sourcing: allSalesOrders.filter((s) => s.status === 'SOURCING').length,
+      confirmed: allSalesOrders.filter((s) => s.status === 'CONFIRMED').length,
+      inProgress: allSalesOrders.filter((s) => s.status === 'IN_PROGRESS').length,
+      onHold: allSalesOrders.filter((s) => s.status === 'ON_HOLD').length,
+      defect: allSalesOrders.filter((s) => s.status === 'DEFECT_FIXING').length,
+      completed: allSalesOrders.filter((s) => s.status === 'COMPLETED').length,
+      cancelled: allSalesOrders.filter((s) => s.status === 'CANCELLED').length,
     };
-  }, [salesOrders]);
+  }, [allSalesOrders]);
+
+  // Filtered list based on statusFilter and search query
+  const salesOrders = useMemo(() => {
+    return allSalesOrders.filter((so) => {
+      // 1. Status Filter
+      if (statusFilter !== 'ALL' && so.status !== statusFilter) {
+        return false;
+      }
+      // 2. Search query filter
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const matchNumber = so.soNumber?.toLowerCase().includes(q);
+        const matchCust = so.customerName?.toLowerCase().includes(q);
+        const matchLoc = so.siteLocation?.toLowerCase().includes(q);
+        const matchSales = so.salesPerson?.toLowerCase().includes(q);
+        const matchItem = so.items?.some((it: any) => it.itemName?.toLowerCase().includes(q));
+        if (!matchNumber && !matchCust && !matchLoc && !matchSales && !matchItem) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [allSalesOrders, statusFilter, search]);
 
   const [lineGroups, setLineGroups] = useState<any[]>([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
