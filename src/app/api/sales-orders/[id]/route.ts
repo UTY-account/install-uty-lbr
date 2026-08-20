@@ -230,6 +230,15 @@ export async function DELETE(
       );
     }
 
+    // Safely delete child items, phases, defects and unlink quotations
+    await prisma.salesOrderItem.deleteMany({ where: { salesOrderId: existing.id } });
+    await prisma.salesOrderPhase.deleteMany({ where: { salesOrderId: existing.id } });
+    await prisma.defectTicket.deleteMany({ where: { salesOrderId: existing.id } });
+    await prisma.subQuotation.updateMany({
+      where: { salesOrderId: existing.id },
+      data: { salesOrderId: null },
+    });
+
     await prisma.salesOrder.delete({
       where: { id: existing.id },
     });

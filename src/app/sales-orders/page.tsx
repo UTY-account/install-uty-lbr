@@ -24,6 +24,7 @@ import {
   Sparkles,
   ArrowUpRight,
   Filter,
+  Trash2,
 } from 'lucide-react';
 import { useCompany } from '@/components/CompanyContext';
 import { formatCurrency, formatDate, getSOStatusInfo } from '@/lib/utils';
@@ -189,6 +190,29 @@ export default function SalesOrdersPage() {
       setPushStatusMsg(`❌ เกิดข้อผิดพลาด: ${err.message}`);
     } finally {
       setIsPushingLine(false);
+    }
+  };
+
+  const handleDeleteSO = async (so: any) => {
+    if (
+      !confirm(
+        `คุณต้องการลบคำสั่งขาย SO เลขที่ "${so.soNumber}" (${so.customerName}) หรือไม่?\n\n⚠️ การดำเนินการนี้จะลบรายการสินค้าและข้อมูลนัดหมายทั้งหมดของ SO นี้อย่างถาวร`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/sales-orders/${so.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert(`ลบคำสั่งขาย ${so.soNumber} เรียบร้อยแล้ว`);
+        fetchSalesOrders();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'เกิดข้อผิดพลาดในการลบคำสั่งขาย');
+      }
+    } catch (err: any) {
+      alert(err.message || 'เกิดข้อผิดพลาดในการลบ');
     }
   };
 
@@ -466,6 +490,14 @@ export default function SalesOrdersPage() {
                       <span>จัดการ SO</span>
                       <ChevronRight className="w-4 h-4" />
                     </Link>
+
+                    <button
+                      onClick={() => handleDeleteSO(so)}
+                      className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-800 border border-rose-200 transition-colors"
+                      title="ลบคำสั่งขายนี้"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
 

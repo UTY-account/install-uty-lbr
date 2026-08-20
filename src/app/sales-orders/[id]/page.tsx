@@ -71,6 +71,9 @@ export default function SalesOrderDetailPage() {
   const [lineMessageText, setLineMessageText] = useState('');
   const [lineShareUrl, setLineShareUrl] = useState('');
 
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const fetchSODetail = async () => {
     try {
       setLoading(true);
@@ -214,6 +217,28 @@ export default function SalesOrderDetailPage() {
       }
     } catch (err) {
       console.error('Cancel error:', err);
+    }
+  };
+
+  const handleDeleteSO = async () => {
+    if (!salesOrder) return;
+    try {
+      setIsDeleting(true);
+      const res = await fetch(`/api/sales-orders/${salesOrder.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        alert(`ลบคำสั่งขาย ${salesOrder.soNumber} เรียบร้อยแล้ว`);
+        router.push('/sales-orders');
+      } else {
+        const err = await res.json();
+        alert(err.error || 'เกิดข้อผิดพลาดในการลบคำสั่งขาย');
+      }
+    } catch (err: any) {
+      alert(err.message || 'เกิดข้อผิดพลาดในการลบคำสั่งขาย');
+    } finally {
+      setIsDeleting(false);
+      setDeleteModalOpen(false);
     }
   };
 
@@ -468,6 +493,15 @@ export default function SalesOrderDetailPage() {
                 <span>ยกเลิกงาน</span>
               </button>
             )}
+
+            <button
+              onClick={() => setDeleteModalOpen(true)}
+              className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold border border-rose-200 transition-colors flex items-center gap-1.5"
+              title="ลบคำสั่งขายนี้"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>ลบ SO</span>
+            </button>
           </div>
         </div>
 
@@ -1199,6 +1233,53 @@ export default function SalesOrderDetailPage() {
                   </a>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="p-3 rounded-2xl bg-rose-50 text-rose-600">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900">
+                  ยืนยันการลบคำสั่งขาย (SO)
+                </h3>
+                <p className="text-xs text-slate-500">
+                  เลขที่: <strong>{salesOrder.soNumber}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-900 space-y-1">
+              <p className="font-bold">⚠️ คำเตือน: ข้อมูลจะถูกลบถาวร</p>
+              <p className="text-[11px] text-rose-800">
+                รายการสินค้า ข้อมูลนัดหมาย และประวัติทั้งหมดของ SO นี้จะถูกลบออกจากระบบ
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteModalOpen(false)}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteSO}
+                disabled={isDeleting}
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-bold shadow-md shadow-rose-500/20"
+              >
+                {isDeleting ? 'กำลังลบ...' : 'ยืนยันลบ SO นี้'}
+              </button>
             </div>
           </div>
         </div>
