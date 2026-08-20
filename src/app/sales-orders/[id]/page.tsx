@@ -74,6 +74,14 @@ export default function SalesOrderDetailPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Staff Tag Modal
+  const [staffModalOpen, setStaffModalOpen] = useState(false);
+  const [availableStaff, setAvailableStaff] = useState<any[]>([]);
+  const [editTaggedStaff, setEditTaggedStaff] = useState<any[]>([]);
+  const [newStaffName, setNewStaffName] = useState('');
+  const [newStaffRole, setNewStaffRole] = useState('FOREMAN');
+  const [isSavingStaff, setIsSavingStaff] = useState(false);
+
   const fetchSODetail = async () => {
     try {
       setLoading(true);
@@ -239,6 +247,69 @@ export default function SalesOrderDetailPage() {
     } finally {
       setIsDeleting(false);
       setDeleteModalOpen(false);
+    }
+  };
+
+  const handleOpenStaffModal = async () => {
+    try {
+      const res = await fetch('/api/staff');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) setAvailableStaff(data);
+      }
+    } catch (e) {}
+    setEditTaggedStaff(taggedList);
+    setStaffModalOpen(true);
+  };
+
+  const handleToggleStaff = (st: any) => {
+    const exists = editTaggedStaff.find((s) => (s.id && s.id === st.id) || s.name === st.name);
+    if (exists) {
+      setEditTaggedStaff(editTaggedStaff.filter((s) => (s.id ? s.id !== st.id : true) && s.name !== st.name));
+    } else {
+      setEditTaggedStaff([...editTaggedStaff, { id: st.id, name: st.name, role: st.role }]);
+    }
+  };
+
+  const handleCreateNewStaff = async () => {
+    if (!newStaffName.trim()) return;
+    try {
+      const res = await fetch('/api/staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newStaffName.trim(), role: newStaffRole }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setAvailableStaff((prev) => [...prev, created]);
+        setEditTaggedStaff((prev) => [...prev, { id: created.id, name: created.name, role: created.role }]);
+        setNewStaffName('');
+      }
+    } catch (err) {
+      console.error('Error creating staff:', err);
+    }
+  };
+
+  const handleSaveTaggedStaff = async () => {
+    if (!salesOrder) return;
+    try {
+      setIsSavingStaff(true);
+      const res = await fetch(`/api/sales-orders/${salesOrder.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taggedStaff: editTaggedStaff }),
+      });
+      if (res.ok) {
+        setStaffModalOpen(false);
+        fetchSODetail();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'เกิดข้อผิดพลาดในการบันทึกทีมงาน');
+      }
+    } catch (err: any) {
+      alert(err.message || 'เกิดข้อผิดพลาดในการบันทึก');
+    } finally {
+      setIsSavingStaff(false);
     }
   };
 
@@ -579,15 +650,25 @@ export default function SalesOrderDetailPage() {
                 {salesOrder.targetFinishDate ? formatDate(salesOrder.targetFinishDate) : '-'}
               </p>
               <div className="pt-1.5">
-                <span className="font-bold text-slate-700 block mb-1">ทีมงานที่แท็ก:</span>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="font-bold text-slate-700">ทีมงานที่แท็ก:</span>
+                  <button
+                    type="button"
+                    onClick={handleOpenStaffModal}
+                    className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 hover:underline cursor-pointer bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200"
+                  >
+                    <Edit className="w-3 h-3" />
+                    <span>แก้ไขทีมงาน</span>
+                  </button>
+                </div>
                 <div className="flex flex-wrap gap-1.5">
                   {taggedList.length === 0 ? (
-                    <span className="text-slate-400 italic">ยังไม่ได้แท็ก</span>
+                    <span className="text-slate-400 italic text-[11px]">ยังไม่ได้แท็กทีมงาน (กดปุ่มแก้ไขเพื่อเลือก)</span>
                   ) : (
                     taggedList.map((st: any, i: number) => (
                       <span
                         key={i}
-                        className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 font-bold border border-slate-200 text-[10px]"
+                        className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-800 font-bold border border-indigo-200 text-[10px]"
                       >
                         {st.name} ({st.role})
                       </span>
@@ -1279,6 +1360,139 @@ export default function SalesOrderDetailPage() {
                 className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-bold shadow-md shadow-rose-500/20"
               >
                 {isDeleting ? 'กำลังลบ...' : 'ยืนยันลบ SO นี้'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Tagged Staff Modal */}
+      {staffModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    แก้ไขทีมงานที่แท็กใน SO
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    เลขที่ SO: <strong>{salesOrder.soNumber}</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setStaffModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Existing Tagged Selection */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-700 block">
+                เลือกทีมงานที่ต้องการแท็ก (คลิกเพื่อเลือก / ยกเลิก):
+              </label>
+
+              {availableStaff.length === 0 ? (
+                <p className="text-xs text-slate-400 italic py-2">ยังไม่มีรายชื่อทีมงานในระบบ</p>
+              ) : (
+                <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 bg-slate-50 rounded-2xl border border-slate-200">
+                  {availableStaff.map((st) => {
+                    const isSelected = editTaggedStaff.some(
+                      (s) => (s.id && s.id === st.id) || s.name === st.name
+                    );
+                    return (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => handleToggleStaff(st)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-300'
+                            : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                        }`}
+                      >
+                        <span>{st.name}</span>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${
+                          isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          {st.role === 'FOREMAN' ? 'โฟร์แมน' : st.role === 'SALES' ? 'เซล' : st.role === 'PM' ? 'PM' : st.role}
+                        </span>
+                        {isSelected && <span>✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Quick Add New Staff */}
+            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2 text-xs">
+              <span className="font-bold text-slate-700 block">+ เพิ่มชื่อทีมงานใหม่เข้าสู่ระบบ:</span>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="ชื่อ-นามสกุล..."
+                  value={newStaffName}
+                  onChange={(e) => setNewStaffName(e.target.value)}
+                  className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+                <select
+                  value={newStaffRole}
+                  onChange={(e) => setNewStaffRole(e.target.value)}
+                  className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-medium"
+                >
+                  <option value="FOREMAN">โฟร์แมน</option>
+                  <option value="SALES">เซล</option>
+                  <option value="PM">PM</option>
+                  <option value="COORDINATOR">ประสานงาน</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={handleCreateNewStaff}
+                  className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold"
+                >
+                  เพิ่ม
+                </button>
+              </div>
+            </div>
+
+            {/* Selected Summary */}
+            <div className="text-xs text-slate-600">
+              <span>เลือกไว้ทั้งหมด: </span>
+              <strong>{editTaggedStaff.length} คน</strong>
+              {editTaggedStaff.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {editTaggedStaff.map((st, i) => (
+                    <span key={i} className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-bold border border-indigo-200 text-[10px]">
+                      {st.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setStaffModalOpen(false)}
+                disabled={isSavingStaff}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveTaggedStaff}
+                disabled={isSavingStaff}
+                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/20 disabled:opacity-50"
+              >
+                {isSavingStaff ? 'กำลังบันทึก...' : '💾 บันทึกทีมงาน'}
               </button>
             </div>
           </div>
