@@ -29,20 +29,24 @@ export async function POST(req: NextRequest) {
       // 1. Bot Joined Group Event OR Bot received message in Group
       if (groupId) {
         // Auto-register / Upsert Group into DB
-        const existing = await prisma.lineGroup.findUnique({
-          where: { groupId },
-        });
-
-        if (!existing) {
-          await prisma.lineGroup.create({
-            data: {
-              name: `กลุ่มไลน์ (${groupId.slice(-6)})`,
-              groupId,
-              companyCode: 'ALL',
-              isDefault: true,
-              description: 'เพิ่มอัตโนมัติผ่านการเชิญบอทเข้ากลุ่ม',
-            },
+        try {
+          const existing = await prisma.lineGroup.findUnique({
+            where: { groupId },
           });
+
+          if (!existing) {
+            await prisma.lineGroup.create({
+              data: {
+                name: `กลุ่มไลน์ (${groupId.slice(-6)})`,
+                groupId,
+                companyCode: 'ALL',
+                isDefault: true,
+                description: 'เพิ่มอัตโนมัติผ่านการเชิญบอทเข้ากลุ่ม',
+              },
+            });
+          }
+        } catch (dbErr) {
+          console.error('Failed to auto-save LINE group into DB:', dbErr);
         }
 
         // Check if event is 'join' or text asking for 'id' / 'รหัสกลุ่ม'
