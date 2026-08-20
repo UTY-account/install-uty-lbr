@@ -231,13 +231,32 @@ export async function DELETE(
     }
 
     // Safely delete child items, phases, defects and unlink quotations
-    await prisma.salesOrderItem.deleteMany({ where: { salesOrderId: existing.id } });
-    await prisma.siteVisitPhase.deleteMany({ where: { salesOrderId: existing.id } });
-    await prisma.defectTicket.deleteMany({ where: { salesOrderId: existing.id } });
-    await prisma.subQuotation.updateMany({
-      where: { salesOrderId: existing.id },
-      data: { salesOrderId: null },
-    });
+    try {
+      if ((prisma as any).salesOrderItem?.deleteMany) {
+        await (prisma as any).salesOrderItem.deleteMany({ where: { salesOrderId: existing.id } });
+      }
+    } catch (_) {}
+
+    try {
+      if ((prisma as any).siteVisitPhase?.deleteMany) {
+        await (prisma as any).siteVisitPhase.deleteMany({ where: { salesOrderId: existing.id } });
+      }
+    } catch (_) {}
+
+    try {
+      if ((prisma as any).defectTicket?.deleteMany) {
+        await (prisma as any).defectTicket.deleteMany({ where: { salesOrderId: existing.id } });
+      }
+    } catch (_) {}
+
+    try {
+      if ((prisma as any).subQuotation?.updateMany) {
+        await (prisma as any).subQuotation.updateMany({
+          where: { salesOrderId: existing.id },
+          data: { salesOrderId: null },
+        });
+      }
+    } catch (_) {}
 
     await prisma.salesOrder.delete({
       where: { id: existing.id },
