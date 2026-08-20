@@ -59,3 +59,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message || 'Failed to create staff' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'Missing staff id' }, { status: 400 });
+    }
+
+    await prisma.staffMember.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true, message: 'ลบรายชื่อทีมงานเรียบร้อยแล้ว' });
+  } catch (error: any) {
+    console.error('Error deleting staff member:', error);
+    return NextResponse.json({ error: error.message || 'Failed to delete staff' }, { status: 500 });
+  }
+}

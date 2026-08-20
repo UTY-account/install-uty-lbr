@@ -98,6 +98,25 @@ export default function NewSalesOrderPage() {
     }
   };
 
+  const handleDeleteStaff = async (st: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(`คุณต้องการลบรายชื่อ "${st.name}" ออกจากระบบถาวรหรือไม่?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/staff?id=${st.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setAvailableStaff((prev) => prev.filter((s) => s.id !== st.id));
+        setSelectedStaff((prev) => prev.filter((s) => s.id !== st.id));
+      } else {
+        const err = await res.json();
+        alert(err.error || 'เกิดข้อผิดพลาดในการลบทีมงาน');
+      }
+    } catch (err: any) {
+      alert(err.message || 'เกิดข้อผิดพลาดในการลบ');
+    }
+  };
+
   const handleCreateNewStaff = async () => {
     if (!newStaffName.trim()) return;
     try {
@@ -419,21 +438,33 @@ export default function NewSalesOrderPage() {
               {availableStaff.map((st) => {
                 const isSelected = !!selectedStaff.find((s) => s.id === st.id);
                 return (
-                  <button
-                    type="button"
+                  <div
                     key={st.id}
                     onClick={() => handleToggleStaff(st)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer select-none ${
                       isSelected
                         ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                         : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                     }`}
                   >
                     <span>
-                      {st.name} ({st.role})
+                      {st.name} ({st.role === 'FOREMAN' ? 'โฟร์แมน' : st.role === 'SALES' ? 'เซล' : st.role === 'PM' ? 'PM' : st.role})
                     </span>
                     {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
-                  </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteStaff(st, e)}
+                      className={`ml-1 p-0.5 rounded-md transition-colors ${
+                        isSelected
+                          ? 'text-indigo-200 hover:text-white hover:bg-white/20'
+                          : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                      }`}
+                      title={`ลบ "${st.name}" ออกจากระบบถาวร`}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
                 );
               })}
             </div>

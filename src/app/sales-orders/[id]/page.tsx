@@ -271,6 +271,25 @@ export default function SalesOrderDetailPage() {
     }
   };
 
+  const handleDeleteStaff = async (st: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(`คุณต้องการลบรายชื่อ "${st.name}" ออกจากระบบถาวรหรือไม่?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/staff?id=${st.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setAvailableStaff((prev) => prev.filter((s) => s.id !== st.id));
+        setEditTaggedStaff((prev) => prev.filter((s) => s.id !== st.id && s.name !== st.name));
+      } else {
+        const err = await res.json();
+        alert(err.error || 'เกิดข้อผิดพลาดในการลบทีมงาน');
+      }
+    } catch (err: any) {
+      alert(err.message || 'เกิดข้อผิดพลาดในการลบ');
+    }
+  };
+
   const handleCreateNewStaff = async () => {
     if (!newStaffName.trim()) return;
     try {
@@ -1407,11 +1426,10 @@ export default function SalesOrderDetailPage() {
                       (s) => (s.id && s.id === st.id) || s.name === st.name
                     );
                     return (
-                      <button
+                      <div
                         key={st.id}
-                        type="button"
                         onClick={() => handleToggleStaff(st)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        className={`group px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer select-none ${
                           isSelected
                             ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-300'
                             : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
@@ -1424,7 +1442,20 @@ export default function SalesOrderDetailPage() {
                           {st.role === 'FOREMAN' ? 'โฟร์แมน' : st.role === 'SALES' ? 'เซล' : st.role === 'PM' ? 'PM' : st.role}
                         </span>
                         {isSelected && <span>✓</span>}
-                      </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteStaff(st, e)}
+                          className={`ml-1 p-0.5 rounded-md transition-colors ${
+                            isSelected
+                              ? 'text-indigo-200 hover:text-white hover:bg-white/20'
+                              : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                          }`}
+                          title={`ลบ "${st.name}" ออกจากระบบถาวร`}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
